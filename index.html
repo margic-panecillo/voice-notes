@@ -12,29 +12,30 @@
     body {
       background-color: #09090b;
       color: #f4f4f5;
-      padding-top: env(safe-area-inset-top);
+      padding-top: calc(0.5rem + env(safe-area-inset-top));
       padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+      touch-action: pan-y;
     }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     @keyframes mic-pulse {
       0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-      50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+      50% { box-shadow: 0 0 0 14px rgba(239, 68, 68, 0); }
     }
-    .mic-active {
-      animation: mic-pulse 1.5s infinite;
-      background-color: #dc2626 !important;
+    .mic-recording {
+      animation: mic-pulse 1.4s infinite;
+      background-color: #ef4444 !important;
+      border-color: #f87171 !important;
     }
   </style>
 </head>
 <body class="min-h-screen font-sans antialiased selection:bg-indigo-500 selection:text-white">
 
-  <!-- TOP MINIMAL BAR -->
-  <header class="sticky top-0 z-30 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/80 px-4 py-3 flex items-center justify-between">
+  <!-- TOP MINIMAL BAR (Clean spacing below Dynamic Island) -->
+  <header class="sticky top-0 z-30 bg-zinc-950/95 border-b border-zinc-800/80 px-4 py-3 flex items-center justify-between">
     <div class="flex items-center gap-2.5">
-      <!-- Hamburger or Back Button depending on view -->
       <button id="navBtn" class="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-200 active:scale-95 transition">
-        <span id="navIcon">☰</span>
+        <span id="navIcon" class="text-base font-bold">☰</span>
       </button>
       <div>
         <h1 id="headerTitle" class="text-sm font-semibold tracking-tight text-zinc-100">Notes</h1>
@@ -42,32 +43,23 @@
       </div>
     </div>
 
-    <!-- Right Controls: Language Toggle & PII indicator -->
-    <div class="flex items-center gap-2">
-      <button
-        id="langToggleBtn"
-        class="h-9 px-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-bold text-zinc-200 flex items-center gap-1.5 active:scale-95 transition"
-      >
-        <span id="langFlag">🇬🇧</span>
-        <span id="langCode">EN</span>
-      </button>
-    </div>
+    <!-- Language Toggle -->
+    <button
+      id="langToggleBtn"
+      class="h-9 px-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-bold text-zinc-200 flex items-center gap-1.5 active:scale-95 transition"
+    >
+      <span id="langFlag">🇬🇧</span>
+      <span id="langCode">EN</span>
+    </button>
   </header>
 
-  <!-- RECORDING STATUS PILL (Slim, unobtrusive top alert) -->
-  <div id="recStatusBanner" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-40 bg-red-600/90 backdrop-blur text-white px-4 py-1.5 rounded-full text-xs font-medium shadow-lg flex items-center gap-2 animate-pulse">
-    <span class="w-2 h-2 rounded-full bg-white"></span>
-    <span id="recStatusText">Listening (EN)... Tap mic or Done to stop</span>
-  </div>
-
   <!-- SIDEBAR DRAWER -->
-  <div id="sidebarOverlay" class="fixed inset-0 bg-black/70 backdrop-blur-xs z-40 hidden opacity-0 transition-opacity duration-200"></div>
+  <div id="sidebarOverlay" class="fixed inset-0 bg-black/70 z-40 hidden opacity-0 transition-opacity duration-200"></div>
   <aside
     id="sidebarDrawer"
     class="fixed top-0 left-0 bottom-0 w-72 bg-zinc-950 border-r border-zinc-800 z-50 transform -translate-x-full transition-transform duration-200 flex flex-col justify-between"
     style="padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);"
   >
-    <!-- Top: Dynamic Themes -->
     <div class="p-4 overflow-y-auto flex-1">
       <div class="flex items-center justify-between mb-3">
         <span class="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Life Themes</span>
@@ -76,7 +68,7 @@
       <div id="sidebarThemesList" class="space-y-1"></div>
     </div>
 
-    <!-- Bottom: API Key & Backup -->
+    <!-- Settings & API Key -->
     <div class="p-4 border-t border-zinc-800 bg-zinc-900/40 space-y-3">
       <div>
         <div class="flex items-center justify-between mb-1">
@@ -87,7 +79,7 @@
           <input
             id="apiKeyInput"
             type="password"
-            placeholder="AIzaSy..."
+            placeholder="Paste AIzaSy... key"
             class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"
           />
           <button id="saveKeyBtn" class="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white shrink-0">
@@ -111,37 +103,31 @@
   <!-- MAIN CONTAINER (SWAPPABLE VIEWS) -->
   <main class="max-w-2xl mx-auto px-3 pt-3 space-y-4">
 
-    <!-- VIEW 1: HOME VIEW (RAMBLER + RECENT NOTES) -->
+    <!-- VIEW 1: HOME VIEW -->
     <div id="homeView" class="space-y-4">
-      
-      <!-- Top Rambler Box -->
-      <section id="ramblerSection" class="bg-zinc-900/90 border border-zinc-800/80 rounded-2xl p-3 shadow-lg transition-all duration-200">
+      <section class="bg-zinc-900/90 border border-zinc-800/80 rounded-2xl p-3 shadow-lg">
         <textarea
           id="rawInput"
           rows="3"
-          placeholder="Speak or type a raw ramble..."
-          class="w-full bg-zinc-950/90 border border-zinc-800/80 rounded-xl p-3 text-sm sm:text-base text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 resize-none transition-all"
+          placeholder="Speak or write thoughts freely..."
+          class="w-full bg-zinc-950/90 border border-zinc-800/80 rounded-xl p-3 text-sm sm:text-base text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 resize-none"
         ></textarea>
-
         <div class="mt-2.5 flex items-center justify-between gap-2">
-          <span id="charCounter" class="text-[11px] text-zinc-500">Ready</span>
+          <span id="homeStatusLabel" class="text-[11px] text-zinc-500">Tap mic to speak</span>
           <button
             id="doneBtn"
-            class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-semibold text-xs sm:text-sm transition shadow-md shadow-indigo-600/20"
+            class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-semibold text-xs sm:text-sm transition"
           >
             Done
           </button>
         </div>
       </section>
 
-      <!-- Feed Container -->
       <section id="homeNotesFeed" class="space-y-2.5"></section>
     </div>
 
-    <!-- VIEW 2: THEME VIEW (FILTERED NOTES + THEME AI) -->
+    <!-- VIEW 2: THEME VIEW -->
     <div id="themeView" class="hidden space-y-4">
-      
-      <!-- Theme AI Box -->
       <section class="bg-zinc-900/80 border border-zinc-800/90 rounded-2xl p-3.5 space-y-2.5">
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold text-indigo-400">🧠 Theme AI</span>
@@ -150,7 +136,6 @@
             <option value="gemini-2.5-pro">Pro 2.5</option>
           </select>
         </div>
-
         <div class="flex gap-2">
           <input
             id="themeAiInput"
@@ -162,7 +147,6 @@
             Ask
           </button>
         </div>
-
         <div id="themeAiResponseBox" class="hidden pt-2 border-t border-zinc-800 text-xs text-zinc-200 space-y-2">
           <div id="themeAiText" class="whitespace-pre-line leading-relaxed"></div>
           <div class="flex justify-end gap-2">
@@ -171,36 +155,54 @@
           </div>
         </div>
       </section>
-
-      <!-- Theme Notes Feed -->
       <section id="themeNotesFeed" class="space-y-2.5"></section>
     </div>
 
-    <!-- VIEW 3: EXACT NOTE DETAIL VIEW (DEEP DIVE + 1-ON-1 NOTE AI) -->
+    <!-- VIEW 3: EXACT NOTE DETAIL (WITH "APPEND" FEATURE) -->
     <div id="noteDetailView" class="hidden space-y-4">
       <article class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
         <div class="flex items-start justify-between gap-3">
           <div>
             <span id="detailThemeBadge" class="text-[11px] px-2 py-0.5 rounded-md bg-indigo-950 border border-indigo-800 text-indigo-300 font-medium">#Theme</span>
-            <span id="detailTimestamp" class="text-[11px] text-zinc-500 ml-2">5:15 PM</span>
+            <span id="detailTimestamp" class="text-[11px] text-zinc-500 ml-2">Time</span>
             <h2 id="detailTitle" class="text-base font-bold text-white mt-1.5 leading-snug">Note Title</h2>
           </div>
-          <button id="detailDeleteBtn" class="p-2 text-zinc-500 hover:text-red-400 active:scale-90 transition" title="Delete note">
+          <button id="detailDeleteBtn" class="p-2 text-zinc-500 hover:text-red-400 active:scale-90 transition">
             🗑️
           </button>
         </div>
 
-        <!-- Synthesized Body -->
         <div id="detailSynthesized" class="text-sm text-zinc-200 whitespace-pre-line leading-relaxed border-t border-zinc-800/80 pt-3"></div>
 
-        <!-- Collapsible Original Voice Ramble -->
+        <!-- APPEND TO THIS NOTE -->
+        <div class="border-t border-zinc-800/80 pt-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Add to this note</span>
+            <span id="appendMicStatus" class="text-[10px] text-zinc-500"></span>
+          </div>
+          <textarea
+            id="appendInput"
+            rows="2"
+            placeholder="Add follow-up thoughts or tap floating mic..."
+            class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs sm:text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 resize-none"
+          ></textarea>
+          <div class="flex justify-end">
+            <button
+              id="appendDoneBtn"
+              class="px-4 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-xs font-medium text-zinc-200 border border-zinc-700"
+            >
+              Append Update
+            </button>
+          </div>
+        </div>
+
         <details class="text-xs text-zinc-500 pt-2 border-t border-zinc-800/60">
-          <summary class="cursor-pointer hover:text-zinc-300 select-none py-1">View original raw voice recording</summary>
+          <summary class="cursor-pointer hover:text-zinc-300 select-none py-1">View original raw recordings</summary>
           <p id="detailRaw" class="mt-2 italic text-zinc-400 bg-zinc-950 p-3 rounded-xl border border-zinc-800/80 leading-relaxed"></p>
         </details>
       </article>
 
-      <!-- DEDICATED 1-ON-1 NOTE AI PARTNER -->
+      <!-- 1-ON-1 NOTE AI CONSULTANT -->
       <section class="bg-zinc-900/80 border border-zinc-800/90 rounded-2xl p-3.5 space-y-3">
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold text-indigo-400">🧠 Consult AI on This Note</span>
@@ -210,11 +212,10 @@
           </select>
         </div>
 
-        <!-- Quick Prompt Chips -->
         <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
           <button onclick="quickPromptNote('Analyze what happened here. What signals or subtext did I miss?')" class="px-2.5 py-1 rounded-lg bg-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap active:scale-95">Read signals</button>
           <button onclick="quickPromptNote('What is the best concrete next move or response here?')" class="px-2.5 py-1 rounded-lg bg-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap active:scale-95">Next move</button>
-          <button onclick="quickPromptNote('Give me a brutally honest critique of my thinking in this note.')" class="px-2.5 py-1 rounded-lg bg-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap active:scale-95">Honest critique</button>
+          <button onclick="quickPromptNote('Give me a brutally honest critique of my thinking here.')" class="px-2.5 py-1 rounded-lg bg-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap active:scale-95">Honest critique</button>
         </div>
 
         <div class="flex gap-2">
@@ -241,11 +242,11 @@
 
   </main>
 
-  <!-- ALWAYS-ACCESSIBLE FLOATING MIC BUTTON (BOTTOM-RIGHT) -->
+  <!-- ALWAYS-ACCESSIBLE FLOATING MIC -->
   <button
     id="floatingMicBtn"
     class="fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white flex items-center justify-center text-2xl shadow-2xl shadow-indigo-600/40 border border-indigo-400/30 transition-all duration-200"
-    aria-label="Record voice note"
+    aria-label="Toggle voice recording"
   >
     🎙️
   </button>
@@ -269,7 +270,7 @@
       <button
         id="copyContextBtn"
         class="px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs font-medium text-zinc-300 active:scale-95 shrink-0"
-        title="Copy anonymized notes for AI"
+        title="Copy notes (anonymized for AI)"
       >
         📋 Copy
       </button>
@@ -277,27 +278,20 @@
   </nav>
 
   <!-- POPUP TOAST -->
-  <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 hidden bg-zinc-800 border border-zinc-700 text-zinc-100 px-4 py-2 rounded-full text-xs font-medium shadow-xl"></div>
+  <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 hidden bg-zinc-800/95 border border-zinc-700 text-zinc-100 px-4 py-2 rounded-full text-xs font-medium shadow-2xl backdrop-blur"></div>
 
   <script>
-    // --- APP STATE ---
-    let notes = JSON.parse(localStorage.getItem('ramblesync_v3_notes') || localStorage.getItem('ramblesync_v2_notes') || '[]');
-    let currentView = 'home'; // 'home' | 'theme' | 'note'
+    // --- STATE ---
+    let notes = JSON.parse(localStorage.getItem('ramblesync_v4_notes') || localStorage.getItem('ramblesync_v3_notes') || '[]');
+    let currentView = 'home';
     let currentTheme = 'ALL';
     let currentNoteId = null;
     let searchQuery = '';
     let currentLang = localStorage.getItem('ramblesync_lang') || 'en-US';
     let geminiApiKey = localStorage.getItem('ramblesync_gemini_key') || '';
 
-    // Ensure valid timestamps and themes on older notes
-    notes = notes.map(n => ({
-      ...n,
-      theme: n.theme || n.topic || 'Thoughts',
-      timestamp: n.timestamp || n.date || formatNow()
-    }));
-
     function saveNotes() {
-      localStorage.setItem('ramblesync_v3_notes', JSON.stringify(notes));
+      localStorage.setItem('ramblesync_v4_notes', JSON.stringify(notes));
     }
 
     function formatNow() {
@@ -312,7 +306,7 @@
       t.textContent = msg;
       t.classList.remove('hidden');
       clearTimeout(window._toastTimer);
-      window._toastTimer = setTimeout(() => t.classList.add('hidden'), 2200);
+      window._toastTimer = setTimeout(() => t.classList.add('hidden'), 2400);
     }
 
     window.copyText = async (text) => {
@@ -320,26 +314,25 @@
       showToast('Copied to clipboard');
     };
 
-    // --- PII ANONYMIZER (Privacy scrubber for AI calls) ---
+    // --- PII ANONYMIZER ---
     function scrubPII(text) {
       if (!text) return '';
       let out = text;
       out = out.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[email]');
       out = out.replace(/(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?){2,3}\d{3,4}/g, '[number]');
       out = out.replace(/\b\d{6,}\b/g, '[id]');
-      // Replace full multi-word names with first name only
-      const blacklist = new Set(['All', 'Notes', 'Dating', 'Social', 'Tasks', 'Thoughts', 'Volleyball', 'Monday', 'Tuesday', 'Friday']);
+      const blacklist = new Set(['All', 'Notes', 'Dating', 'Social', 'Tasks', 'Thoughts', 'Volleyball', 'Monday', 'Friday']);
       out = out.replace(/\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{1,15})(?:\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{1,18})){1,2}\b/g, (match, first) => {
         return blacklist.has(first) ? match : first;
       });
       return out;
     }
 
-    // --- SPEECH RECOGNITION (BULLETPROOF IOS AUTO-RECOVERY) ---
+    // --- SPEECH RECOGNITION ---
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     let rec = null;
     let isRecording = false;
-    let speechBuffer = '';
+    let activeInputTarget = 'home'; // 'home' or 'append'
 
     if (SpeechRec) {
       rec = new SpeechRec();
@@ -353,19 +346,18 @@
 
       rec.onresult = (e) => {
         let interim = '';
+        let targetEl = activeInputTarget === 'append' ? document.getElementById('appendInput') : document.getElementById('rawInput');
+        
         for (let i = e.resultIndex; i < e.results.length; ++i) {
           if (e.results[i].isFinal) {
-            speechBuffer += e.results[i][0].transcript + ' ';
+            targetEl.value = (targetEl.value + ' ' + e.results[i][0].transcript).trimStart();
           } else {
             interim += e.results[i][0].transcript;
           }
         }
-        const input = document.getElementById('rawInput');
-        input.value = (speechBuffer + interim).trimStart();
       };
 
       rec.onerror = (e) => {
-        console.warn('Speech error:', e.error);
         if (e.error === 'not-allowed') {
           showToast('Mic access blocked. Enable in Safari Settings.');
           stopRecording();
@@ -374,7 +366,6 @@
 
       rec.onend = () => {
         if (isRecording) {
-          // iOS Safari silently drops mic on small pauses; restart if user hasn't explicitly stopped
           try { rec.start(); } catch (err) { stopRecording(); }
         } else {
           updateMicVisuals(false);
@@ -395,16 +386,13 @@
     }
 
     function startRecording() {
-      // If user is currently deep in a note, return to home to view what they're rambling
-      if (currentView !== 'home') navigateTo('home');
-      speechBuffer = document.getElementById('rawInput').value;
-      if (speechBuffer && !speechBuffer.endsWith(' ')) speechBuffer += ' ';
+      activeInputTarget = (currentView === 'note') ? 'append' : 'home';
       rec.lang = currentLang;
       try {
         rec.start();
-      } catch (err) {
-        console.warn('Mic start err', err);
-      }
+        const isEs = currentLang.startsWith('es');
+        showToast(isEs ? 'Escuchando en español... Toca el micro para parar' : 'Listening in English... Tap mic to stop');
+      } catch (err) {}
     }
 
     function stopRecording() {
@@ -417,101 +405,138 @@
 
     function updateMicVisuals(active) {
       const btn = document.getElementById('floatingMicBtn');
-      const banner = document.getElementById('recStatusBanner');
-      const statusText = document.getElementById('recStatusText');
+      const homeLabel = document.getElementById('homeStatusLabel');
       const isEs = currentLang.startsWith('es');
 
       if (active) {
-        btn.classList.add('mic-active');
+        btn.classList.add('mic-recording');
         btn.innerHTML = '⏹️';
-        banner.classList.remove('hidden');
-        statusText.textContent = isEs ? 'Escuchando (ES)... Toca el micro para parar' : 'Listening (EN)... Tap mic to stop';
+        homeLabel.textContent = isEs ? 'Escuchando...' : 'Listening...';
+        homeLabel.classList.add('text-red-400');
       } else {
-        btn.classList.remove('mic-active');
+        btn.classList.remove('mic-recording');
         btn.innerHTML = '🎙️';
-        banner.classList.add('hidden');
+        homeLabel.textContent = isEs ? 'Toca el micro para hablar' : 'Tap mic to speak';
+        homeLabel.classList.remove('text-red-400');
       }
     }
 
-    // --- AI SYNTHESIZER: SMART TITLE, THEME SELECTION & TRAILING FLUFF REMOVAL ---
+    // --- AI SYNTHESIS (GEMINI) ---
     async function synthesizeRamble(rawText) {
-      // If user has API key, use Gemini for human-level synthesis
-      if (geminiApiKey) {
-        const prompt = `You are an elite personal thoughts synthesizer.
-Process this raw, messy voice ramble into a clean structured note.
+      if (!geminiApiKey) {
+        showToast('Tip: Add Gemini API Key in sidebar for real AI summaries');
+        let cleaned = rawText
+          .replace(/\b(what was i saying|what was i talking about|i don't know whatever)\b.*$/gi, '')
+          .replace(/\b(um+|uh+|like|basically|o sea|en plan|tipo)\b/gi, '')
+          .trim();
+        const words = cleaned.split(/\s+/).slice(0, 6).join(' ');
+        return {
+          title: words ? (words.charAt(0).toUpperCase() + words.slice(1)) : 'New Note',
+          theme: 'Thoughts',
+          synthesized: '• ' + (cleaned || rawText)
+        };
+      }
+
+      const prompt = `You are an elite personal notes synthesizer.
+Process this raw, messy voice ramble into a structured note.
 
 STRICT INSTRUCTIONS:
 1. TRUNCATE & PURGE TRAILING META-BABBLE:
    - Completely delete trailing filler like "what was I saying?", "what was I talking about?", "I don't know whatever", "basically that", "random shit".
-   - Completely strip all filler words (um, uh, like, basically, o sea, en plan, tipo, sabes).
+   - Completely strip conversational filler words (um, uh, like, basically, o sea, en plan, tipo, sabes).
 2. WRITE A SMART, INSIGHTFUL TITLE:
-   - Do NOT just grab the first few words or write "Awkward interaction".
-   - Summarize the specific core event in 4 to 7 words (e.g. "Library Encounter: Hand Touch & Signals", "Volleyball Spike Timing Correction", "Proxmox Server Memory Leak").
+   - Summarize the specific event in 4 to 7 words (e.g. "Library Encounter: Hand Touch & Signals", "Volleyball Spike Timing Correction", "Proxmox Server Memory Leak").
 3. ACCURATELY SELECT THE LIFE THEME:
-   - "Dating" (romantic interests, flirting, girl interactions, body language, attraction, dating advice)
+   - "Dating" (romantic interests, flirting, girl interactions, body language, attraction)
    - "Social" (friends, hangouts, general peer conversations)
-   - "Volleyball" (training, game tactics, jumps, team)
-   - "Tech & Projects" (servers, coding, hardware, fixes)
-   - "Uni & Study" (classes, exams, assignments, campus)
-   - "Tasks" (errands, to-dos, shopping)
+   - "Volleyball" (training, tactics, games)
+   - "Tech & Projects" (servers, hardware, coding)
+   - "Uni & Study" (classes, exams, assignments)
+   - "Tasks" (errands, to-dos)
    - "Thoughts" (philosophy, mindset, self-reflection)
-   - Or create a dynamic theme if it's distinct.
 4. SYNTHESIZED BODY:
-   - 2 to 4 bullet points with key facts, subtext, or action items.
-   - Match the exact language the user spoke (English or Spanish).
+   - 2 to 4 clean bullet points with facts, subtext, or action items.
+   - Match the exact language of the input (English or Spanish).
 
 Return ONLY valid JSON:
 {
-  "title": "Smart Insightful Title",
+  "title": "Smart Title",
   "theme": "Dating" | "Social" | "Volleyball" | "Tech & Projects" | "Uni & Study" | "Tasks" | "Thoughts",
-  "synthesized": "• Key insight 1\\n• Key insight 2"
+  "synthesized": "• Point 1\\n• Point 2"
 }
 
 Raw ramble:
 """${rawText}"""`;
 
-        try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: 'application/json' }
+        })
+      });
+
+      const data = await res.json();
+      return JSON.parse(data.candidates[0].content.parts[0].text);
+    }
+
+    // --- APPEND TO EXISTING NOTE ---
+    async function handleAppendNote() {
+      if (isRecording) stopRecording();
+      const input = document.getElementById('appendInput');
+      const updateText = input.value.trim();
+      if (!updateText) return;
+
+      const note = notes.find(n => n.id === currentNoteId);
+      if (!note) return;
+
+      const btn = document.getElementById('appendDoneBtn');
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      try {
+        if (geminiApiKey) {
+          const prompt = `The user recorded a follow-up to this existing note.
+Existing Note:
+Title: ${note.title}
+Theme: ${note.theme}
+Current Summary:
+${note.synthesized}
+
+Follow-up Ramble:
+"""${updateText}"""
+
+Instructions:
+- Strip filler words.
+- Integrate the new information smoothly into the existing summary bullets (or add new bullets if separate).
+- Return ONLY the updated bullets.`;
+
           const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { responseMimeType: 'application/json' }
-            })
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
           });
           const data = await res.json();
-          return JSON.parse(data.candidates[0].content.parts[0].text);
-        } catch (err) {
-          console.warn('API error, falling back to local cleaner', err);
+          note.synthesized = data.candidates[0].content.parts[0].text.trim();
+        } else {
+          note.synthesized += `\n• Update (${formatNow()}): ${updateText}`;
         }
+
+        note.raw += `\n\n[Update ${formatNow()}]: ${updateText}`;
+        saveNotes();
+        input.value = '';
+        renderNoteDetailView();
+        showToast('Note updated & synthesized');
+      } catch (err) {
+        showToast('Error appending note');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Append Update';
       }
-
-      // Local Fallback Cleaner
-      let cleaned = rawText
-        .replace(/\b(what was i saying|what was i talking about|i don't know whatever|so yeah basically)\b.*$/gi, '')
-        .replace(/\b(um+|uh+|like|basically|you know|o sea|en plan|tipo|este)\b/gi, '')
-        .replace(/\s{2,}/g, ' ')
-        .trim();
-
-      // Basic Theme Guesser
-      let theme = 'Thoughts';
-      const lower = cleaned.toLowerCase();
-      if (lower.match(/\b(girl|crush|dating|kiss|date|flirt|attraction|she touched|chica|gustar|cita)\b/)) theme = 'Dating';
-      else if (lower.match(/\b(friend|bro|hanging out|party|amigo|quedar|colegas)\b/)) theme = 'Social';
-      else if (lower.match(/\b(volleyball|spike|jump|court|voleibol|saque|remate)\b/)) theme = 'Volleyball';
-      else if (lower.match(/\b(server|docker|code|hardware|laptop|pc|servidor)\b/)) theme = 'Tech & Projects';
-      else if (lower.match(/\b(exam|study|professor|class|clase|examen|universidad)\b/)) theme = 'Uni & Study';
-      else if (lower.match(/\b(buy|call|email|todo|tomorrow|comprar|llamar)\b/)) theme = 'Tasks';
-
-      const words = cleaned.split(/\s+/).slice(0, 6).join(' ');
-      return {
-        title: words.charAt(0).toUpperCase() + words.slice(1),
-        theme,
-        synthesized: '• ' + cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
-      };
     }
 
-    // --- HANDLE "DONE" CLICK ---
+    // --- HANDLE HOME "DONE" ---
     async function handleDone() {
       if (isRecording) stopRecording();
       const rawInput = document.getElementById('rawInput');
@@ -524,27 +549,28 @@ Raw ramble:
 
       try {
         const result = await synthesizeRamble(text);
-        const newNote = {
+        notes.unshift({
           id: 'note-' + Date.now(),
           title: result.title,
           theme: result.theme,
           synthesized: result.synthesized,
           raw: text,
           timestamp: formatNow()
-        };
+        });
 
-        notes.unshift(newNote);
         saveNotes();
         rawInput.value = '';
         renderAll();
         showToast(`Saved to #${result.theme}`);
+      } catch (err) {
+        showToast('Failed to synthesize note');
       } finally {
         doneBtn.disabled = false;
         doneBtn.textContent = 'Done';
       }
     }
 
-    // --- NAVIGATION CONTROLLER (3 VIEWS) ---
+    // --- NAVIGATION CONTROLLER ---
     function navigateTo(view, param = null) {
       currentView = view;
       const homeView = document.getElementById('homeView');
@@ -569,7 +595,7 @@ Raw ramble:
         navIcon.textContent = '‹';
         headerTitle.textContent = `#${currentTheme}`;
         const count = notes.filter(n => n.theme === currentTheme).length;
-        headerSubtitle.textContent = `${count} note(s) in this theme`;
+        headerSubtitle.textContent = `${count} note(s)`;
         renderThemeView();
       } else if (view === 'note') {
         currentNoteId = param;
@@ -579,29 +605,39 @@ Raw ramble:
       }
     }
 
-    // Top Nav Button (either opens Sidebar or goes Back)
     document.getElementById('navBtn').addEventListener('click', () => {
-      if (currentView === 'home') {
-        openSidebar();
-      } else if (currentView === 'theme') {
-        navigateTo('home');
-      } else if (currentView === 'note') {
-        // Go back to the note's theme if we came from there, else home
-        navigateTo('home');
-      }
+      if (currentView === 'home') openSidebar();
+      else navigateTo('home');
     });
 
-    // --- RENDER VIEWS ---
+    // --- SWIPE FROM LEFT EDGE TO GO BACK ---
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    window.addEventListener('touchstart', (e) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    window.addEventListener('touchend', (e) => {
+      const deltaX = e.changedTouches[0].clientX - touchStartX;
+      const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
+
+      // Only trigger if horizontal swipe starting near left edge (< 45px) and moving right (> 65px)
+      if (touchStartX < 45 && deltaX > 65 && deltaY < 50) {
+        if (!document.getElementById('sidebarDrawer').classList.contains('-translate-x-full')) {
+          closeSidebar();
+        } else if (currentView !== 'home') {
+          navigateTo('home');
+        }
+      }
+    }, { passive: true });
+
+    // --- RENDER FUNCTIONS ---
     function renderHomeFeed() {
       const container = document.getElementById('homeNotesFeed');
       const q = searchQuery.toLowerCase();
-      const filtered = notes.filter(n => {
-        return !q ||
-          n.title.toLowerCase().includes(q) ||
-          n.synthesized.toLowerCase().includes(q) ||
-          n.theme.toLowerCase().includes(q) ||
-          n.raw.toLowerCase().includes(q);
-      });
+      const filtered = notes.filter(n => !q || n.title.toLowerCase().includes(q) || n.synthesized.toLowerCase().includes(q) || n.theme.toLowerCase().includes(q) || n.raw.toLowerCase().includes(q));
 
       if (filtered.length === 0) {
         container.innerHTML = `<div class="text-center py-12 text-zinc-600 text-xs">No notes found. Tap the mic to record.</div>`;
@@ -609,10 +645,7 @@ Raw ramble:
       }
 
       container.innerHTML = filtered.map(n => `
-        <article
-          onclick="navigateTo('note', '${n.id}')"
-          class="bg-zinc-900 border border-zinc-800/80 hover:border-zinc-700 rounded-2xl p-4 cursor-pointer active:scale-[0.99] transition shadow-sm"
-        >
+        <article onclick="navigateTo('note', '${n.id}')" class="bg-zinc-900 border border-zinc-800/80 rounded-2xl p-4 cursor-pointer active:scale-[0.99] transition shadow-sm">
           <div class="flex items-center justify-between gap-2">
             <span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-zinc-800 text-indigo-300">#${n.theme}</span>
             <span class="text-[11px] text-zinc-500">${n.timestamp}</span>
@@ -628,18 +661,13 @@ Raw ramble:
       const themeNotes = notes.filter(n => n.theme === currentTheme);
 
       if (themeNotes.length === 0) {
-        container.innerHTML = `<div class="text-center py-10 text-zinc-600 text-xs">No notes under #${currentTheme} yet.</div>`;
+        container.innerHTML = `<div class="text-center py-10 text-zinc-600 text-xs">No notes in #${currentTheme} yet.</div>`;
         return;
       }
 
       container.innerHTML = themeNotes.map(n => `
-        <article
-          onclick="navigateTo('note', '${n.id}')"
-          class="bg-zinc-900 border border-zinc-800/80 hover:border-zinc-700 rounded-2xl p-4 cursor-pointer active:scale-[0.99] transition"
-        >
-          <div class="flex items-center justify-between gap-2">
-            <span class="text-[11px] text-zinc-500">${n.timestamp}</span>
-          </div>
+        <article onclick="navigateTo('note', '${n.id}')" class="bg-zinc-900 border border-zinc-800/80 rounded-2xl p-4 cursor-pointer active:scale-[0.99] transition">
+          <span class="text-[11px] text-zinc-500">${n.timestamp}</span>
           <h3 class="text-sm font-semibold text-white mt-1 leading-snug">${n.title}</h3>
           <p class="text-xs text-zinc-400 mt-1 line-clamp-2 leading-relaxed">${n.synthesized.replace(/^[•\s]+/gm, '')}</p>
         </article>
@@ -648,10 +676,7 @@ Raw ramble:
 
     function renderNoteDetailView() {
       const note = notes.find(n => n.id === currentNoteId);
-      if (!note) {
-        navigateTo('home');
-        return;
-      }
+      if (!note) { navigateTo('home'); return; }
       document.getElementById('headerTitle').textContent = note.title;
       document.getElementById('headerSubtitle').textContent = `#${note.theme}`;
       document.getElementById('detailThemeBadge').textContent = `#${note.theme}`;
@@ -660,9 +685,8 @@ Raw ramble:
       document.getElementById('detailSynthesized').textContent = note.synthesized;
       document.getElementById('detailRaw').textContent = `"${note.raw}"`;
 
-      // Safe Deletion Handler (Protects against accidental taps)
       document.getElementById('detailDeleteBtn').onclick = () => {
-        if (confirm(`Delete "${note.title}" permanently?`)) {
+        if (confirm(`Delete "${note.title}"?`)) {
           notes = notes.filter(n => n.id !== note.id);
           saveNotes();
           showToast('Note deleted');
@@ -680,22 +704,17 @@ Raw ramble:
       const defaultThemes = ['Dating', 'Social', 'Volleyball', 'Tech & Projects', 'Uni & Study', 'Tasks', 'Thoughts'];
       const allThemes = Array.from(new Set([...defaultThemes, ...Object.keys(counts)])).sort();
 
-      container.innerHTML = allThemes.map(theme => {
-        const count = counts[theme] || 0;
-        return `
-          <button
-            onclick="selectThemeFromSidebar('${theme.replace(/'/g, "\\'")}')"
-            class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-zinc-300 hover:bg-zinc-900 transition"
-          >
-            <span># ${theme}</span>
-            <span class="text-[10px] px-2 py-0.5 rounded-full ${count > 0 ? 'bg-zinc-800 text-zinc-300' : 'text-zinc-600'}">${count}</span>
-          </button>
-        `;
-      }).join('');
+      container.innerHTML = allThemes.map(theme => `
+        <button
+          onclick="selectThemeFromSidebar('${theme.replace(/'/g, "\\'")}')"
+          class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-zinc-300 hover:bg-zinc-900 transition"
+        >
+          <span># ${theme}</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full ${counts[theme] > 0 ? 'bg-zinc-800 text-zinc-300' : 'text-zinc-600'}">${counts[theme] || 0}</span>
+        </button>
+      `).join('');
 
-      document.getElementById('apiKeyDot').className = geminiApiKey
-        ? 'w-2 h-2 rounded-full bg-emerald-400'
-        : 'w-2 h-2 rounded-full bg-zinc-600';
+      document.getElementById('apiKeyDot').className = geminiApiKey ? 'w-2 h-2 rounded-full bg-emerald-400' : 'w-2 h-2 rounded-full bg-zinc-600';
     }
 
     window.selectThemeFromSidebar = (theme) => {
@@ -710,7 +729,7 @@ Raw ramble:
       else if (currentView === 'note') renderNoteDetailView();
     }
 
-    // --- DEDICATED AI CHAT (THEME & EXACT NOTE) ---
+    // --- AI CONSULTANT FUNCTIONS ---
     async function queryGemini(systemPrompt, userQuery, model) {
       if (!geminiApiKey) {
         openSidebar();
@@ -726,12 +745,10 @@ Raw ramble:
         })
       });
 
-      if (!res.ok) throw new Error('API Request failed');
       const data = await res.json();
       return data.candidates[0].content.parts[0].text.trim();
     }
 
-    // 1-on-1 Note AI
     window.quickPromptNote = (q) => {
       document.getElementById('noteAiInput').value = q;
       askNoteAi();
@@ -751,33 +768,25 @@ Raw ramble:
       box.classList.remove('hidden');
       text.textContent = 'Thinking...';
 
-      const sysPrompt = `You are a sharp, empathetic, and candid second brain.
-The user is asking you for insights or advice regarding this SPECIFIC note they recorded:
-
-[Note Title]: ${scrubPII(note.title)}
+      const sysPrompt = `You are a candid, grounded second brain.
+Context note:
+[Title]: ${scrubPII(note.title)}
 [Theme]: ${note.theme}
-[Recorded At]: ${note.timestamp}
-[Synthesized Summary]:
-${scrubPII(note.synthesized)}
-
-[Raw Voice Ramble for complete emotional context]:
-"${scrubPII(note.raw)}"
+[Summary]: ${scrubPII(note.synthesized)}
+[Raw context]: "${scrubPII(note.raw)}"
 
 Instructions:
-- Be authentic, peer-like, and direct. No corporate fluff.
-- If it's about dating/crushes, analyze signals, body language, and give concrete next moves.
+- Give a direct, realistic opinion. No corporate clichés.
 - Respond in the same language as the user's question (English or Spanish).`;
 
       try {
-        const reply = await queryGemini(sysPrompt, q, model);
-        text.textContent = reply;
+        text.textContent = await queryGemini(sysPrompt, q, model);
         input.value = '';
       } catch (err) {
         text.textContent = 'Error querying Gemini. Check your API key.';
       }
     }
 
-    // Theme AI
     async function askThemeAi() {
       const input = document.getElementById('themeAiInput');
       const q = input.value.trim();
@@ -787,7 +796,7 @@ Instructions:
       const text = document.getElementById('themeAiText');
       const model = document.getElementById('themeModelSelect').value;
       box.classList.remove('hidden');
-      text.textContent = 'Analyzing theme notes...';
+      text.textContent = 'Analyzing theme...';
 
       const themeNotes = notes
         .filter(n => n.theme === currentTheme)
@@ -795,16 +804,11 @@ Instructions:
         .map(n => `- [${n.timestamp}] ${scrubPII(n.title)}: ${scrubPII(n.synthesized)}`)
         .join('\n');
 
-      const sysPrompt = `You are an executive advisor analyzing notes under the theme #${currentTheme}:
-${themeNotes || '(No notes in this theme yet)'}
-
-Instructions:
-- Answer the user's question by cross-referencing trends across these notes.
-- Respond in the same language as the user's question.`;
+      const sysPrompt = `Analyze notes under #${currentTheme}:
+${themeNotes || '(No notes yet)'}`;
 
       try {
-        const reply = await queryGemini(sysPrompt, q, model);
-        text.textContent = reply;
+        text.textContent = await queryGemini(sysPrompt, q, model);
         input.value = '';
       } catch (err) {
         text.textContent = 'Error querying Gemini.';
@@ -830,13 +834,13 @@ Instructions:
       setTimeout(() => overlay.classList.add('hidden'), 200);
     }
 
-    // --- EVENT LISTENERS ---
+    // --- DOM BINDINGS ---
     document.getElementById('floatingMicBtn').addEventListener('click', toggleRecording);
     document.getElementById('doneBtn').addEventListener('click', handleDone);
+    document.getElementById('appendDoneBtn').addEventListener('click', handleAppendNote);
     document.getElementById('closeSidebarBtn').addEventListener('click', closeSidebar);
     document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
 
-    // Language Toggle
     document.getElementById('langToggleBtn').addEventListener('click', () => {
       currentLang = currentLang.startsWith('en') ? 'es-ES' : 'en-US';
       localStorage.setItem('ramblesync_lang', currentLang);
@@ -850,11 +854,9 @@ Instructions:
       showToast(isEs ? 'Idioma: Español' : 'Language: English');
     });
 
-    // Note & Theme AI buttons
     document.getElementById('askNoteAiBtn').addEventListener('click', askNoteAi);
     document.getElementById('askThemeAiBtn').addEventListener('click', askThemeAi);
 
-    // Save API Key
     document.getElementById('apiKeyInput').value = geminiApiKey;
     document.getElementById('saveKeyBtn').addEventListener('click', () => {
       geminiApiKey = document.getElementById('apiKeyInput').value.trim();
@@ -863,15 +865,13 @@ Instructions:
       showToast(geminiApiKey ? 'API Key saved' : 'Switched to local mode');
     });
 
-    // Copy Context (Scrubbed)
     document.getElementById('copyContextBtn').addEventListener('click', async () => {
       const activeList = currentView === 'theme' ? notes.filter(n => n.theme === currentTheme) : notes;
       const text = activeList.map(n => `[#${n.theme} | ${n.timestamp}] ${scrubPII(n.title)}\n${scrubPII(n.synthesized)}`).join('\n\n');
       await navigator.clipboard.writeText(text);
-      showToast(`Copied ${activeList.length} note(s) (Names & numbers scrubbed)`);
+      showToast(`Copied ${activeList.length} note(s) (Anonymized)`);
     });
 
-    // Search Bar
     const searchInput = document.getElementById('searchInput');
     const clearSearchBtn = document.getElementById('clearSearchBtn');
     searchInput.addEventListener('input', (e) => {
@@ -887,7 +887,6 @@ Instructions:
       renderHomeFeed();
     });
 
-    // JSON Backup / Restore
     document.getElementById('exportBtn').addEventListener('click', () => {
       const blob = new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -917,7 +916,6 @@ Instructions:
       reader.readAsText(file);
     });
 
-    // Init
     navigateTo('home');
     renderAll();
   </script>
