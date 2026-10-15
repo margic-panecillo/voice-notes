@@ -12,97 +12,93 @@
     body {
       background-color: #09090b;
       color: #f4f4f5;
-      padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
       padding-top: env(safe-area-inset-top);
+      padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
     }
-    @keyframes pulse-red {
-      0%, 100% { background-color: rgba(220, 38, 38, 0.92); }
-      50% { background-color: rgba(153, 27, 27, 0.96); }
-    }
-    .recording-banner {
-      animation: pulse-red 1.6s infinite ease-in-out;
-    }
-    /* Hide scrollbars cleanly */
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes mic-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+    }
+    .mic-active {
+      animation: mic-pulse 1.5s infinite;
+      background-color: #dc2626 !important;
+    }
   </style>
 </head>
 <body class="min-h-screen font-sans antialiased selection:bg-indigo-500 selection:text-white">
 
   <!-- TOP MINIMAL BAR -->
-  <header class="sticky top-0 z-30 bg-zinc-950/85 backdrop-blur-md border-b border-zinc-800/80 px-4 py-3 flex items-center justify-between">
-    <button
-      id="openSidebarBtn"
-      class="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-200 active:scale-95 transition"
-      aria-label="Menu"
-    >
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-      </svg>
-    </button>
-
-    <!-- Current Topic Pill -->
-    <div class="flex items-center gap-2">
-      <span id="currentTopicLabel" class="text-sm font-semibold tracking-tight text-zinc-100">All Notes</span>
-      <span id="currentTopicCount" class="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">0</span>
+  <header class="sticky top-0 z-30 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/80 px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <!-- Hamburger or Back Button depending on view -->
+      <button id="navBtn" class="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-200 active:scale-95 transition">
+        <span id="navIcon">☰</span>
+      </button>
+      <div>
+        <h1 id="headerTitle" class="text-sm font-semibold tracking-tight text-zinc-100">Notes</h1>
+        <p id="headerSubtitle" class="text-[10px] text-zinc-500 leading-tight">All recent entries</p>
+      </div>
     </div>
 
-    <!-- Language Toggle (EN / ES) -->
-    <button
-      id="langToggleBtn"
-      class="h-10 px-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-bold tracking-wider text-zinc-200 flex items-center gap-1.5 active:scale-95 transition"
-    >
-      <span id="langFlag">🇬🇧</span>
-      <span id="langCode">EN</span>
-    </button>
+    <!-- Right Controls: Language Toggle & PII indicator -->
+    <div class="flex items-center gap-2">
+      <button
+        id="langToggleBtn"
+        class="h-9 px-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-bold text-zinc-200 flex items-center gap-1.5 active:scale-95 transition"
+      >
+        <span id="langFlag">🇬🇧</span>
+        <span id="langCode">EN</span>
+      </button>
+    </div>
   </header>
 
-  <!-- SLIDE-OUT SIDEBAR DRAWER -->
+  <!-- RECORDING STATUS PILL (Slim, unobtrusive top alert) -->
+  <div id="recStatusBanner" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-40 bg-red-600/90 backdrop-blur text-white px-4 py-1.5 rounded-full text-xs font-medium shadow-lg flex items-center gap-2 animate-pulse">
+    <span class="w-2 h-2 rounded-full bg-white"></span>
+    <span id="recStatusText">Listening (EN)... Tap mic or Done to stop</span>
+  </div>
+
+  <!-- SIDEBAR DRAWER -->
   <div id="sidebarOverlay" class="fixed inset-0 bg-black/70 backdrop-blur-xs z-40 hidden opacity-0 transition-opacity duration-200"></div>
   <aside
     id="sidebarDrawer"
     class="fixed top-0 left-0 bottom-0 w-72 bg-zinc-950 border-r border-zinc-800 z-50 transform -translate-x-full transition-transform duration-200 flex flex-col justify-between"
     style="padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);"
   >
-    <!-- Top: Dynamic Topics List -->
+    <!-- Top: Dynamic Themes -->
     <div class="p-4 overflow-y-auto flex-1">
       <div class="flex items-center justify-between mb-3">
-        <span class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Topics</span>
+        <span class="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Life Themes</span>
         <button id="closeSidebarBtn" class="text-zinc-400 hover:text-white p-1">✕</button>
       </div>
-      <div id="sidebarTopicsList" class="space-y-1"></div>
+      <div id="sidebarThemesList" class="space-y-1"></div>
     </div>
 
-    <!-- Bottom: Settings & API Key -->
-    <div class="p-4 border-t border-zinc-800/90 bg-zinc-900/40 space-y-3">
+    <!-- Bottom: API Key & Backup -->
+    <div class="p-4 border-t border-zinc-800 bg-zinc-900/40 space-y-3">
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="text-[11px] font-medium text-zinc-400">Gemini API Key (AI Studio)</label>
-          <span id="keyStatusDot" class="w-2 h-2 rounded-full bg-zinc-600"></span>
+          <label class="text-[11px] font-medium text-zinc-400">Gemini API Key</label>
+          <span id="apiKeyDot" class="w-2 h-2 rounded-full bg-zinc-600"></span>
         </div>
         <div class="flex gap-1.5">
           <input
             id="apiKeyInput"
             type="password"
-            placeholder="Paste AIzaSy... key"
+            placeholder="AIzaSy..."
             class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"
           />
-          <button
-            id="saveKeyBtn"
-            class="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white shrink-0"
-          >
+          <button id="saveKeyBtn" class="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white shrink-0">
             Save
           </button>
         </div>
       </div>
 
-      <!-- Local Memory Backup / Restore -->
       <div class="flex items-center gap-2 pt-1">
-        <button
-          id="exportBtn"
-          class="flex-1 py-1.5 px-2 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 hover:bg-zinc-800"
-        >
-          ⬇ Backup JSON
+        <button id="exportBtn" class="flex-1 py-1.5 px-2 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 hover:bg-zinc-800">
+          ⬇ Backup
         </button>
         <label class="flex-1 py-1.5 px-2 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 hover:bg-zinc-800 text-center cursor-pointer">
           ⬆ Restore
@@ -112,122 +108,152 @@
     </div>
   </aside>
 
-  <!-- MAIN WORKSPACE -->
+  <!-- MAIN CONTAINER (SWAPPABLE VIEWS) -->
   <main class="max-w-2xl mx-auto px-3 pt-3 space-y-4">
 
-    <!-- VOICE & TEXT CAPTURE ZONE -->
-    <section class="bg-zinc-900/90 border border-zinc-800/90 rounded-2xl overflow-hidden shadow-lg">
+    <!-- VIEW 1: HOME VIEW (RAMBLER + RECENT NOTES) -->
+    <div id="homeView" class="space-y-4">
       
-      <!-- ACTIVE RECORDING RED ZONE (1/4 Screen Height when speaking) -->
-      <button
-        id="recordingRedZone"
-        class="hidden w-full h-[22vh] recording-banner flex flex-col items-center justify-center text-white px-4 transition active:scale-[0.99]"
-      >
-        <div class="flex items-center gap-2.5">
-          <span class="w-3 h-3 rounded-full bg-white animate-ping"></span>
-          <span id="recordingLangLabel" class="text-lg font-bold tracking-wide">SPEAKING (EN)</span>
-        </div>
-        <span class="text-xs text-red-100 mt-1.5 opacity-90">Tap anywhere on this red bar to stop</span>
-      </button>
-
-      <!-- Textbox + Controls -->
-      <div class="p-3">
+      <!-- Top Rambler Box -->
+      <section id="ramblerSection" class="bg-zinc-900/90 border border-zinc-800/80 rounded-2xl p-3 shadow-lg transition-all duration-200">
         <textarea
           id="rawInput"
           rows="3"
-          placeholder="..."
-          class="w-full bg-zinc-950/90 border border-zinc-800/80 rounded-xl p-3 text-base text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 resize-none transition-all duration-200"
+          placeholder="Speak or type a raw ramble..."
+          class="w-full bg-zinc-950/90 border border-zinc-800/80 rounded-xl p-3 text-sm sm:text-base text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 resize-none transition-all"
         ></textarea>
 
-        <div class="mt-2.5 flex items-center gap-2">
-          <!-- Big Mic Button (Disappears while recording) -->
-          <button
-            id="micBtn"
-            class="flex-1 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-[0.98] text-white font-medium text-sm flex items-center justify-center gap-2 transition border border-zinc-700/70"
-          >
-            <span>🎙️</span>
-          </button>
-
-          <!-- Jarvis Quick Proofread Button -->
-          <button
-            id="proofreadBtn"
-            class="px-3.5 py-3 rounded-xl bg-zinc-950 hover:bg-zinc-800 active:scale-[0.98] text-zinc-300 border border-zinc-800 text-xs font-medium transition"
-            title="Proofread & Polish draft"
-          >
-            ✨ Polish
-          </button>
-
-          <!-- Done Button -->
+        <div class="mt-2.5 flex items-center justify-between gap-2">
+          <span id="charCounter" class="text-[11px] text-zinc-500">Ready</span>
           <button
             id="doneBtn"
-            class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-semibold text-sm transition shadow-md shadow-indigo-600/20"
+            class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-semibold text-xs sm:text-sm transition shadow-md shadow-indigo-600/20"
           >
             Done
           </button>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- TOPIC AI PARTNER (SECOND BRAIN) -->
-    <section class="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-3">
-      <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-        <div class="flex items-center gap-1.5">
-          <span class="text-xs font-semibold text-indigo-400">🧠 Topic AI</span>
-          <!-- Model Selector Switch -->
-          <select
-            id="modelSelect"
-            class="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-[11px] text-zinc-300 focus:outline-none focus:border-indigo-500"
-          >
-            <option value="gemini-2.5-flash">Flash 2.5 (Balanced)</option>
-            <option value="gemini-2.5-flash-lite">Flash-Lite 2.5 (Fastest)</option>
-            <option value="gemini-2.5-pro">Pro 2.5 (Deep Decision)</option>
-            <option value="gemini-2.0-flash">Flash 2.0</option>
+      <!-- Feed Container -->
+      <section id="homeNotesFeed" class="space-y-2.5"></section>
+    </div>
+
+    <!-- VIEW 2: THEME VIEW (FILTERED NOTES + THEME AI) -->
+    <div id="themeView" class="hidden space-y-4">
+      
+      <!-- Theme AI Box -->
+      <section class="bg-zinc-900/80 border border-zinc-800/90 rounded-2xl p-3.5 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-indigo-400">🧠 Theme AI</span>
+          <select id="themeModelSelect" class="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-0.5 text-[11px] text-zinc-300">
+            <option value="gemini-2.5-flash">Flash 2.5</option>
+            <option value="gemini-2.5-pro">Pro 2.5</option>
           </select>
         </div>
 
-        <!-- Quick Decision Prompts -->
-        <div class="flex items-center gap-1 overflow-x-auto no-scrollbar">
-          <button onclick="askTopicAI('Give me your honest second opinion on these notes.')" class="px-2 py-1 rounded-lg bg-zinc-800/90 hover:bg-zinc-700 text-[11px] text-zinc-300 whitespace-nowrap">Second opinion</button>
-          <button onclick="askTopicAI('What blind spots or missing details do you see here?')" class="px-2 py-1 rounded-lg bg-zinc-800/90 hover:bg-zinc-700 text-[11px] text-zinc-300 whitespace-nowrap">Blind spots</button>
-          <button onclick="askTopicAI('Help me prioritize and make a decision based on this.')" class="px-2 py-1 rounded-lg bg-zinc-800/90 hover:bg-zinc-700 text-[11px] text-zinc-300 whitespace-nowrap">Decide</button>
+        <div class="flex gap-2">
+          <input
+            id="themeAiInput"
+            type="text"
+            placeholder="Ask AI about this theme..."
+            class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
+          />
+          <button id="askThemeAiBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-xs font-semibold text-white shrink-0 active:scale-95">
+            Ask
+          </button>
         </div>
-      </div>
 
-      <div class="flex gap-2">
-        <input
-          id="aiQuestionInput"
-          type="text"
-          placeholder="Ask about this topic or paste draft to critique..."
-          class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
-        />
-        <button
-          id="askAiBtn"
-          class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-100 shrink-0 active:scale-95 transition"
-        >
-          Ask
-        </button>
-      </div>
-
-      <!-- AI Response Output Drawer -->
-      <div id="aiResponseBox" class="hidden mt-3 pt-3 border-t border-zinc-800 text-sm text-zinc-200 space-y-2">
-        <div id="aiResponseText" class="whitespace-pre-line leading-relaxed text-xs sm:text-sm text-zinc-200"></div>
-        <div class="flex items-center justify-end gap-2 pt-1">
-          <button id="copyAiReplyBtn" class="px-2.5 py-1 rounded-lg bg-zinc-800 text-[11px] text-zinc-300 hover:text-white">📋 Copy</button>
-          <button id="saveAiReplyBtn" class="px-2.5 py-1 rounded-lg bg-indigo-950 border border-indigo-800 text-[11px] text-indigo-300">📌 Save to Topic</button>
-          <button onclick="document.getElementById('aiResponseBox').classList.add('hidden')" class="px-2 py-1 text-[11px] text-zinc-500 hover:text-zinc-300">Close</button>
+        <div id="themeAiResponseBox" class="hidden pt-2 border-t border-zinc-800 text-xs text-zinc-200 space-y-2">
+          <div id="themeAiText" class="whitespace-pre-line leading-relaxed"></div>
+          <div class="flex justify-end gap-2">
+            <button onclick="copyText(document.getElementById('themeAiText').textContent)" class="px-2 py-1 bg-zinc-800 rounded text-[10px]">Copy</button>
+            <button onclick="document.getElementById('themeAiResponseBox').classList.add('hidden')" class="px-2 py-1 text-zinc-500 text-[10px]">Close</button>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- NOTES FEED -->
-    <section id="notesFeed" class="space-y-2.5 pb-6"></section>
+      <!-- Theme Notes Feed -->
+      <section id="themeNotesFeed" class="space-y-2.5"></section>
+    </div>
+
+    <!-- VIEW 3: EXACT NOTE DETAIL VIEW (DEEP DIVE + 1-ON-1 NOTE AI) -->
+    <div id="noteDetailView" class="hidden space-y-4">
+      <article class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <span id="detailThemeBadge" class="text-[11px] px-2 py-0.5 rounded-md bg-indigo-950 border border-indigo-800 text-indigo-300 font-medium">#Theme</span>
+            <span id="detailTimestamp" class="text-[11px] text-zinc-500 ml-2">5:15 PM</span>
+            <h2 id="detailTitle" class="text-base font-bold text-white mt-1.5 leading-snug">Note Title</h2>
+          </div>
+          <button id="detailDeleteBtn" class="p-2 text-zinc-500 hover:text-red-400 active:scale-90 transition" title="Delete note">
+            🗑️
+          </button>
+        </div>
+
+        <!-- Synthesized Body -->
+        <div id="detailSynthesized" class="text-sm text-zinc-200 whitespace-pre-line leading-relaxed border-t border-zinc-800/80 pt-3"></div>
+
+        <!-- Collapsible Original Voice Ramble -->
+        <details class="text-xs text-zinc-500 pt-2 border-t border-zinc-800/60">
+          <summary class="cursor-pointer hover:text-zinc-300 select-none py-1">View original raw voice recording</summary>
+          <p id="detailRaw" class="mt-2 italic text-zinc-400 bg-zinc-950 p-3 rounded-xl border border-zinc-800/80 leading-relaxed"></p>
+        </details>
+      </article>
+
+      <!-- DEDICATED 1-ON-1 NOTE AI PARTNER -->
+      <section class="bg-zinc-900/80 border border-zinc-800/90 rounded-2xl p-3.5 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-indigo-400">🧠 Consult AI on This Note</span>
+          <select id="noteModelSelect" class="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-0.5 text-[11px] text-zinc-300">
+            <option value="gemini-2.5-flash">Flash 2.5</option>
+            <option value="gemini-2.5-pro">Pro 2.5</option>
+          </select>
+        </div>
+
+        <!-- Quick Prompt Chips -->
+        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+          <button onclick="quickPromptNote('Analyze what happened here. What signals or subtext did I miss?')" class="px-2.5 py-1 rounded-lg bg-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap active:scale-95">Read signals</button>
+          <button onclick="quickPromptNote('What is the best concrete next move or response here?')" class="px-2.5 py-1 rounded-lg bg-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap active:scale-95">Next move</button>
+          <button onclick="quickPromptNote('Give me a brutally honest critique of my thinking in this note.')" class="px-2.5 py-1 rounded-lg bg-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap active:scale-95">Honest critique</button>
+        </div>
+
+        <div class="flex gap-2">
+          <input
+            id="noteAiInput"
+            type="text"
+            placeholder="Ask about this specific note..."
+            class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
+          />
+          <button id="askNoteAiBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-xs font-semibold text-white shrink-0 active:scale-95">
+            Ask
+          </button>
+        </div>
+
+        <div id="noteAiResponseBox" class="hidden pt-2 border-t border-zinc-800 text-xs text-zinc-200 space-y-2">
+          <div id="noteAiText" class="whitespace-pre-line leading-relaxed"></div>
+          <div class="flex justify-end gap-2">
+            <button onclick="copyText(document.getElementById('noteAiText').textContent)" class="px-2 py-1 bg-zinc-800 rounded text-[10px]">Copy</button>
+            <button onclick="document.getElementById('noteAiResponseBox').classList.add('hidden')" class="px-2 py-1 text-zinc-500 text-[10px]">Close</button>
+          </div>
+        </div>
+      </section>
+    </div>
 
   </main>
 
+  <!-- ALWAYS-ACCESSIBLE FLOATING MIC BUTTON (BOTTOM-RIGHT) -->
+  <button
+    id="floatingMicBtn"
+    class="fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white flex items-center justify-center text-2xl shadow-2xl shadow-indigo-600/40 border border-indigo-400/30 transition-all duration-200"
+    aria-label="Record voice note"
+  >
+    🎙️
+  </button>
+
   <!-- SAFARI-STYLE BOTTOM SEARCH BAR -->
   <nav
-    class="fixed bottom-0 left-0 right-0 z-30 bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-800/90 px-3 pt-2"
-    style="padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));"
+    class="fixed bottom-0 left-0 right-0 z-30 bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-800/90 px-3 pt-2"
+    style="padding-bottom: calc(0.6rem + env(safe-area-inset-bottom));"
   >
     <div class="max-w-2xl mx-auto flex items-center gap-2">
       <div class="relative flex-1">
@@ -235,47 +261,50 @@
         <input
           id="searchInput"
           type="search"
-          placeholder="Search notes, topics, words..."
-          class="w-full bg-zinc-900 border border-zinc-800 rounded-2xl pl-9 pr-8 py-2 text-base text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600"
+          placeholder="Search all notes, words, dates..."
+          class="w-full bg-zinc-900 border border-zinc-800 rounded-2xl pl-9 pr-8 py-2 text-sm sm:text-base text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-700"
         />
-        <button
-          id="clearSearchBtn"
-          class="hidden absolute right-3 top-2.5 text-zinc-400 hover:text-white text-xs"
-        >
-          ✕
-        </button>
+        <button id="clearSearchBtn" class="hidden absolute right-3 top-2.5 text-zinc-400 hover:text-white text-xs">✕</button>
       </div>
       <button
-        id="copyTopicContextBtn"
-        class="px-3 py-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs font-medium text-zinc-300 active:scale-95 transition shrink-0"
-        title="Copy all notes in this topic (anonymized for AI)"
+        id="copyContextBtn"
+        class="px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs font-medium text-zinc-300 active:scale-95 shrink-0"
+        title="Copy anonymized notes for AI"
       >
-        📋 Copy Topic
+        📋 Copy
       </button>
     </div>
   </nav>
 
-  <!-- TOAST NOTIFICATION -->
+  <!-- POPUP TOAST -->
   <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 hidden bg-zinc-800 border border-zinc-700 text-zinc-100 px-4 py-2 rounded-full text-xs font-medium shadow-xl"></div>
 
   <script>
-    // --- STATE ---
-    let notes = JSON.parse(localStorage.getItem('ramblesync_v2_notes') || localStorage.getItem('ramblesync_notes') || '[]');
-    let activeTopic = 'ALL';
+    // --- APP STATE ---
+    let notes = JSON.parse(localStorage.getItem('ramblesync_v3_notes') || localStorage.getItem('ramblesync_v2_notes') || '[]');
+    let currentView = 'home'; // 'home' | 'theme' | 'note'
+    let currentTheme = 'ALL';
+    let currentNoteId = null;
     let searchQuery = '';
-    let currentLang = localStorage.getItem('ramblesync_lang') || 'en-US'; // 'en-US' or 'es-ES'
+    let currentLang = localStorage.getItem('ramblesync_lang') || 'en-US';
     let geminiApiKey = localStorage.getItem('ramblesync_gemini_key') || '';
-    let selectedModel = localStorage.getItem('ramblesync_model') || 'gemini-2.5-flash';
-    let lastAiResponse = '';
 
-    // Migrate old category property if present
+    // Ensure valid timestamps and themes on older notes
     notes = notes.map(n => ({
       ...n,
-      topic: n.topic || n.category || 'Thoughts'
+      theme: n.theme || n.topic || 'Thoughts',
+      timestamp: n.timestamp || n.date || formatNow()
     }));
 
-    function saveState() {
-      localStorage.setItem('ramblesync_v2_notes', JSON.stringify(notes));
+    function saveNotes() {
+      localStorage.setItem('ramblesync_v3_notes', JSON.stringify(notes));
+    }
+
+    function formatNow() {
+      const d = new Date();
+      const datePart = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      const timePart = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `${datePart}, ${timePart}`;
     }
 
     function showToast(msg) {
@@ -286,514 +315,503 @@
       window._toastTimer = setTimeout(() => t.classList.add('hidden'), 2200);
     }
 
-    // --- PII ANONYMIZER (Non-linking scrubber for AI) ---
+    window.copyText = async (text) => {
+      await navigator.clipboard.writeText(text);
+      showToast('Copied to clipboard');
+    };
+
+    // --- PII ANONYMIZER (Privacy scrubber for AI calls) ---
     function scrubPII(text) {
       if (!text) return '';
       let out = text;
-
-      // 1. Redact emails
       out = out.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[email]');
-
-      // 2. Redact phone numbers, credit cards, or long ID numbers (6+ digits)
       out = out.replace(/(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?){2,3}\d{3,4}/g, '[number]');
       out = out.replace(/\b\d{6,}\b/g, '[id]');
-
-      // 3. Convert Multi-Word Full Names ("Mike Phillips McCracken") -> First Name Only ("Mike")
-      const nonNames = new Set([
-        'All', 'Notes', 'Tasks', 'Cooking', 'Recipes', 'Thoughts', 'Ideas',
-        'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-        'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December',
-        'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'
-      ]);
-
-      out = out.replace(/\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{1,15})(?:\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{1,18})){1,2}\b/g, (match, firstName) => {
-        if (nonNames.has(firstName)) return match;
-        return firstName;
+      // Replace full multi-word names with first name only
+      const blacklist = new Set(['All', 'Notes', 'Dating', 'Social', 'Tasks', 'Thoughts', 'Volleyball', 'Monday', 'Tuesday', 'Friday']);
+      out = out.replace(/\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{1,15})(?:\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{1,18})){1,2}\b/g, (match, first) => {
+        return blacklist.has(first) ? match : first;
       });
-
       return out;
     }
 
-    // --- BILINGUAL FILLER SCRUBBER (EN + ES) ---
-    const FILLERS_EN = [
-      /\b(um+|uh+|er+|ah+|hmm+)\b/gi,
-      /\b(you know|i mean|sort of|kind of|basically|literally|honestly|actually)\b/gi,
-      /\b(so yeah|yeah so|like i said)\b/gi,
-      /(?:^|\s)like(?=\s*,|\s+uh|\s+um|\s+i\b|\s+we\b|\s+you\b|\s+\d)/gi
-    ];
-
-    const FILLERS_ES = [
-      /\b(eh+|em+|este+|mm+)\b/gi,
-      /\b(o sea|en plan|es decir|digamos|como que|pues nada|bueno pues)\b/gi,
-      /\b(sabes|¿sabes\?|me explico|básicamente|literalmente|sinceramente)\b/gi,
-      /(?:^|\s)tipo(?=\s*,|\s+que\b|\s+yo\b|\s+nosotros\b|\s+\d)/gi
-    ];
-
-    function cleanBilingualFillers(rawText) {
-      let cleaned = rawText;
-      let removedCount = 0;
-
-      [...FILLERS_EN, ...FILLERS_ES].forEach((regex) => {
-        const matches = cleaned.match(regex);
-        if (matches) removedCount += matches.length;
-        cleaned = cleaned.replace(regex, ' ');
-      });
-
-      // Remove accidental word stutters ("the the", "el el", "no no")
-      cleaned = cleaned.replace(/\b(\w+)\s+\1\b/gi, '$1');
-      cleaned = cleaned.replace(/\s*,\s*,+/g, ',').replace(/^[\s,]+|[\s,]+$/g, '').replace(/\s{2,}/g, ' ');
-      return { cleaned, removedCount };
-    }
-
-    // --- LOCAL DYNAMIC TOPIC DETECTOR (Fallback when no API key) ---
-    function inferLocalTopic(text) {
-      // Check if user explicitly tagged #Topic
-      const hashMatch = text.match(/#([a-zA-Z0-9_áéíóúñÁÉÍÓÚÑ]+)/);
-      if (hashMatch) {
-        const tag = hashMatch[1];
-        return tag.charAt(0).toUpperCase() + tag.slice(1);
-      }
-
-      const lower = text.toLowerCase();
-      const rules = [
-        { topic: 'Cooking', regex: /\b(recipe|cook|bake|simmer|boil|fry|garlic|onion|pasta|sauce|chicken|olive oil|grams|receta|cocinar|horno|ingredientes|pollo|salsa|ajo|cebolla)\b/g, min: 2 },
-        { topic: 'Tasks', regex: /\b(todo|remind me|need to|have to|must|call|email|buy|schedule|deadline|tomorrow|friday|tengo que|recordar|comprar|llamar|enviar|mañana|pendiente)\b/g, min: 1 },
-        { topic: 'Tech & Hardware', regex: /\b(server|docker|code|bug|laptop|pc|macbook|iphone|ipad|battery|sensor|api|github|código|servidor|batería|pantalla|reparar)\b/g, min: 1 },
-        { topic: 'Uni & Study', regex: /\b(exam|study|lecture|professor|math|physics|assignment|calculus|examen|estudiar|clase|universidad|apuntes|mates|física)\b/g, min: 1 },
-        { topic: 'Fitness', regex: /\b(workout|gym|run|bike|cycling|volleyball|training|sets|reps|entreno|gimnasio|bici|voleibol|correr)\b/g, min: 1 },
-        { topic: 'Ideas', regex: /\b(idea|what if|startup|project|build|concept|feature|proyecto|crear|inventar|imagina)\b/g, min: 1 }
-      ];
-
-      for (const rule of rules) {
-        const hits = (lower.match(rule.regex) || []).length;
-        if (hits >= rule.min) return rule.topic;
-      }
-
-      return activeTopic !== 'ALL' ? activeTopic : 'Thoughts';
-    }
-
-    function makeShortTitle(text, fallbackTopic) {
-      const stripped = text
-        .replace(/#[a-zA-Z0-9_áéíóúñÁÉÍÓÚÑ]+/g, '')
-        .replace(/^(so|okay|well|also|remind me to|i need to|tengo que|bueno|entonces|oye)\s+/i, '')
-        .trim();
-      const words = stripped.split(/\s+/).slice(0, 6).join(' ').replace(/[.,;!?]+$/, '');
-      if (!words) return fallbackTopic;
-      return words.charAt(0).toUpperCase() + words.slice(1);
-    }
-
-    function localProcessRamble(rawText) {
-      const { cleaned, removedCount } = cleanBilingualFillers(rawText);
-      const segments = cleaned
-        .split(/(?:\.\s+|\b(?:also|oh and|another thing|además|por otro lado|también recuerda)\b)/i)
-        .map(s => s.trim())
-        .filter(s => s.length > 3);
-
-      if (segments.length <= 1) {
-        const topic = inferLocalTopic(cleaned);
-        const body = cleaned.replace(/#[a-zA-Z0-9_áéíóúñÁÉÍÓÚÑ]+/g, '').trim();
-        return {
-          removedCount,
-          items: [{
-            title: makeShortTitle(body, topic),
-            topic,
-            synthesized: body.charAt(0).toUpperCase() + body.slice(1)
-          }]
-        };
-      }
-
-      const grouped = {};
-      segments.forEach(seg => {
-        const topic = inferLocalTopic(seg);
-        if (!grouped[topic]) grouped[topic] = [];
-        const cleanSeg = seg.replace(/#[a-zA-Z0-9_áéíóúñÁÉÍÓÚÑ]+/g, '').trim();
-        const formatted = cleanSeg.charAt(0).toUpperCase() + cleanSeg.slice(1);
-        grouped[topic].push(formatted.endsWith('.') ? formatted : formatted + '.');
-      });
-
-      const items = Object.keys(grouped).map(topic => ({
-        title: makeShortTitle(grouped[topic][0], topic),
-        topic,
-        synthesized: grouped[topic].length > 1 ? grouped[topic].map(l => '• ' + l).join('\n') : grouped[topic][0]
-      }));
-
-      return { removedCount, items };
-    }
-
-    // --- GEMINI AI RAMBLE PROCESSOR ---
-    async function geminiProcessRamble(rawText, mode = 'SYNTHESIZE') {
-      const existingTopics = [...new Set(notes.map(n => n.topic))];
-
-      const prompt = mode === 'PROOFREAD'
-        ? `You are Jarvis, a sharp executive proofreader. Clean up this voice ramble, remove all filler words, fix grammar, and turn it into a polished, natural-sounding message or draft in the SAME language the user spoke (English or Spanish). Do NOT add robotic fluff.
-Return ONLY valid JSON:
-{
-  "removedCount": number,
-  "items": [
-    { "title": "Polished Draft Title", "topic": "Drafts", "synthesized": "The clean, ready-to-send text" }
-  ]
-}
-Raw input: """${rawText}"""`
-        : `Take this raw voice ramble (in English, Spanish, or mixed), strip all filler words, and organize it into concise notes.
-Keep the output in the SAME language as the input.
-If the user covers multiple separate topics in one ramble, split them into separate items.
-Reuse existing topics if they fit: ${JSON.stringify(existingTopics)}, OR create a concise 1-2 word topic name (e.g. "Tasks", "Cooking", "Hardware", "Uni", "Ideas", "Fitness", "Thoughts").
-${activeTopic !== 'ALL' ? `If the topic is ambiguous, default to "${activeTopic}".` : ''}
-
-Return ONLY valid JSON:
-{
-  "removedCount": number,
-  "items": [
-    {
-      "title": "Short crisp title",
-      "topic": "Dynamic Topic Name",
-      "synthesized": "Clean bulleted or structured text"
-    }
-  ]
-}
-Raw input: """${rawText}"""`;
-
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${geminiApiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json' }
-        })
-      });
-
-      if (!res.ok) throw new Error('API Error');
-      const data = await res.json();
-      return JSON.parse(data.candidates[0].content.parts[0].text);
-    }
-
-    // --- VOICE RECORDING (QUARTER-SCREEN RED BANNER FLOW) ---
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition = null;
+    // --- SPEECH RECOGNITION (BULLETPROOF IOS AUTO-RECOVERY) ---
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let rec = null;
     let isRecording = false;
+    let speechBuffer = '';
 
-    if (SpeechRecognition) {
-      recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
+    if (SpeechRec) {
+      rec = new SpeechRec();
+      rec.continuous = true;
+      rec.interimResults = true;
 
-      let baseTranscript = '';
-
-      recognition.onstart = () => {
+      rec.onstart = () => {
         isRecording = true;
-        const input = document.getElementById('rawInput');
-        baseTranscript = input.value;
-        if (baseTranscript && !baseTranscript.endsWith(' ')) baseTranscript += ' ';
-        setRecordingUI(true);
+        updateMicVisuals(true);
       };
 
-      recognition.onresult = (event) => {
+      rec.onresult = (e) => {
         let interim = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            baseTranscript += event.results[i][0].transcript + ' ';
+        for (let i = e.resultIndex; i < e.results.length; ++i) {
+          if (e.results[i].isFinal) {
+            speechBuffer += e.results[i][0].transcript + ' ';
           } else {
-            interim += event.results[i][0].transcript;
+            interim += e.results[i][0].transcript;
           }
         }
         const input = document.getElementById('rawInput');
-        input.value = baseTranscript + interim;
-        input.scrollTop = input.scrollHeight;
+        input.value = (speechBuffer + interim).trimStart();
       };
 
-      recognition.onerror = () => stopVoice();
-      recognition.onend = () => { if (isRecording) stopVoice(); };
+      rec.onerror = (e) => {
+        console.warn('Speech error:', e.error);
+        if (e.error === 'not-allowed') {
+          showToast('Mic access blocked. Enable in Safari Settings.');
+          stopRecording();
+        }
+      };
+
+      rec.onend = () => {
+        if (isRecording) {
+          // iOS Safari silently drops mic on small pauses; restart if user hasn't explicitly stopped
+          try { rec.start(); } catch (err) { stopRecording(); }
+        } else {
+          updateMicVisuals(false);
+        }
+      };
     }
 
-    function startVoice() {
-      if (!recognition) {
-        showToast('Speech API not supported in this browser');
+    function toggleRecording() {
+      if (!rec) {
+        showToast('Speech recognition not supported in this browser.');
         return;
       }
-      recognition.lang = currentLang;
-      recognition.start();
-    }
-
-    function stopVoice() {
-      isRecording = false;
-      if (recognition) {
-        try { recognition.stop(); } catch (e) {}
-      }
-      setRecordingUI(false);
-    }
-
-    function setRecordingUI(recording) {
-      const redZone = document.getElementById('recordingRedZone');
-      const micBtn = document.getElementById('micBtn');
-      const rawInput = document.getElementById('rawInput');
-      const langLabel = document.getElementById('recordingLangLabel');
-
-      if (recording) {
-        redZone.classList.remove('hidden');
-        micBtn.classList.add('hidden');
-        rawInput.rows = 6;
-        langLabel.textContent = currentLang.startsWith('es') ? 'HABLANDO (ES)' : 'SPEAKING (EN)';
+      if (isRecording) {
+        stopRecording();
       } else {
-        redZone.classList.add('hidden');
-        micBtn.classList.remove('hidden');
-        rawInput.rows = 3;
+        startRecording();
       }
     }
 
-    // --- SUBMIT ("DONE" & "POLISH") ---
-    async function handleDone(mode = 'SYNTHESIZE') {
-      if (isRecording) stopVoice();
+    function startRecording() {
+      // If user is currently deep in a note, return to home to view what they're rambling
+      if (currentView !== 'home') navigateTo('home');
+      speechBuffer = document.getElementById('rawInput').value;
+      if (speechBuffer && !speechBuffer.endsWith(' ')) speechBuffer += ' ';
+      rec.lang = currentLang;
+      try {
+        rec.start();
+      } catch (err) {
+        console.warn('Mic start err', err);
+      }
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      if (rec) {
+        try { rec.stop(); } catch (e) {}
+      }
+      updateMicVisuals(false);
+    }
+
+    function updateMicVisuals(active) {
+      const btn = document.getElementById('floatingMicBtn');
+      const banner = document.getElementById('recStatusBanner');
+      const statusText = document.getElementById('recStatusText');
+      const isEs = currentLang.startsWith('es');
+
+      if (active) {
+        btn.classList.add('mic-active');
+        btn.innerHTML = '⏹️';
+        banner.classList.remove('hidden');
+        statusText.textContent = isEs ? 'Escuchando (ES)... Toca el micro para parar' : 'Listening (EN)... Tap mic to stop';
+      } else {
+        btn.classList.remove('mic-active');
+        btn.innerHTML = '🎙️';
+        banner.classList.add('hidden');
+      }
+    }
+
+    // --- AI SYNTHESIZER: SMART TITLE, THEME SELECTION & TRAILING FLUFF REMOVAL ---
+    async function synthesizeRamble(rawText) {
+      // If user has API key, use Gemini for human-level synthesis
+      if (geminiApiKey) {
+        const prompt = `You are an elite personal thoughts synthesizer.
+Process this raw, messy voice ramble into a clean structured note.
+
+STRICT INSTRUCTIONS:
+1. TRUNCATE & PURGE TRAILING META-BABBLE:
+   - Completely delete trailing filler like "what was I saying?", "what was I talking about?", "I don't know whatever", "basically that", "random shit".
+   - Completely strip all filler words (um, uh, like, basically, o sea, en plan, tipo, sabes).
+2. WRITE A SMART, INSIGHTFUL TITLE:
+   - Do NOT just grab the first few words or write "Awkward interaction".
+   - Summarize the specific core event in 4 to 7 words (e.g. "Library Encounter: Hand Touch & Signals", "Volleyball Spike Timing Correction", "Proxmox Server Memory Leak").
+3. ACCURATELY SELECT THE LIFE THEME:
+   - "Dating" (romantic interests, flirting, girl interactions, body language, attraction, dating advice)
+   - "Social" (friends, hangouts, general peer conversations)
+   - "Volleyball" (training, game tactics, jumps, team)
+   - "Tech & Projects" (servers, coding, hardware, fixes)
+   - "Uni & Study" (classes, exams, assignments, campus)
+   - "Tasks" (errands, to-dos, shopping)
+   - "Thoughts" (philosophy, mindset, self-reflection)
+   - Or create a dynamic theme if it's distinct.
+4. SYNTHESIZED BODY:
+   - 2 to 4 bullet points with key facts, subtext, or action items.
+   - Match the exact language the user spoke (English or Spanish).
+
+Return ONLY valid JSON:
+{
+  "title": "Smart Insightful Title",
+  "theme": "Dating" | "Social" | "Volleyball" | "Tech & Projects" | "Uni & Study" | "Tasks" | "Thoughts",
+  "synthesized": "• Key insight 1\\n• Key insight 2"
+}
+
+Raw ramble:
+"""${rawText}"""`;
+
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: 'application/json' }
+            })
+          });
+          const data = await res.json();
+          return JSON.parse(data.candidates[0].content.parts[0].text);
+        } catch (err) {
+          console.warn('API error, falling back to local cleaner', err);
+        }
+      }
+
+      // Local Fallback Cleaner
+      let cleaned = rawText
+        .replace(/\b(what was i saying|what was i talking about|i don't know whatever|so yeah basically)\b.*$/gi, '')
+        .replace(/\b(um+|uh+|like|basically|you know|o sea|en plan|tipo|este)\b/gi, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+
+      // Basic Theme Guesser
+      let theme = 'Thoughts';
+      const lower = cleaned.toLowerCase();
+      if (lower.match(/\b(girl|crush|dating|kiss|date|flirt|attraction|she touched|chica|gustar|cita)\b/)) theme = 'Dating';
+      else if (lower.match(/\b(friend|bro|hanging out|party|amigo|quedar|colegas)\b/)) theme = 'Social';
+      else if (lower.match(/\b(volleyball|spike|jump|court|voleibol|saque|remate)\b/)) theme = 'Volleyball';
+      else if (lower.match(/\b(server|docker|code|hardware|laptop|pc|servidor)\b/)) theme = 'Tech & Projects';
+      else if (lower.match(/\b(exam|study|professor|class|clase|examen|universidad)\b/)) theme = 'Uni & Study';
+      else if (lower.match(/\b(buy|call|email|todo|tomorrow|comprar|llamar)\b/)) theme = 'Tasks';
+
+      const words = cleaned.split(/\s+/).slice(0, 6).join(' ');
+      return {
+        title: words.charAt(0).toUpperCase() + words.slice(1),
+        theme,
+        synthesized: '• ' + cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
+      };
+    }
+
+    // --- HANDLE "DONE" CLICK ---
+    async function handleDone() {
+      if (isRecording) stopRecording();
       const rawInput = document.getElementById('rawInput');
-      const rawText = rawInput.value.trim();
-      if (!rawText) return;
+      const text = rawInput.value.trim();
+      if (!text) return;
 
       const doneBtn = document.getElementById('doneBtn');
-      const proofreadBtn = document.getElementById('proofreadBtn');
       doneBtn.disabled = true;
-      proofreadBtn.disabled = true;
       doneBtn.textContent = '...';
 
       try {
-        let result;
-        if (geminiApiKey) {
-          try {
-            result = await geminiProcessRamble(rawText, mode);
-          } catch (err) {
-            result = localProcessRamble(rawText);
-          }
-        } else {
-          result = localProcessRamble(rawText);
-          if (mode === 'PROOFREAD' && result.items.length > 0) {
-            result.items[0].topic = 'Drafts';
-          }
-        }
+        const result = await synthesizeRamble(text);
+        const newNote = {
+          id: 'note-' + Date.now(),
+          title: result.title,
+          theme: result.theme,
+          synthesized: result.synthesized,
+          raw: text,
+          timestamp: formatNow()
+        };
 
-        result.items.forEach(item => {
-          notes.unshift({
-            id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
-            title: item.title,
-            topic: item.topic,
-            synthesized: item.synthesized,
-            raw: rawText,
-            completed: false,
-            date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-          });
-        });
-
-        saveState();
+        notes.unshift(newNote);
+        saveNotes();
         rawInput.value = '';
         renderAll();
-        showToast(mode === 'PROOFREAD' ? '✨ Draft polished & saved' : 'Saved');
+        showToast(`Saved to #${result.theme}`);
       } finally {
         doneBtn.disabled = false;
-        proofreadBtn.disabled = false;
         doneBtn.textContent = 'Done';
       }
     }
 
-    // --- TOPIC AI PARTNER (DECISION & SECOND OPINION) ---
-    window.askTopicAI = async function(presetQuestion) {
-      const qInput = document.getElementById('aiQuestionInput');
-      const question = (presetQuestion || qInput.value).trim();
-      if (!question) return;
+    // --- NAVIGATION CONTROLLER (3 VIEWS) ---
+    function navigateTo(view, param = null) {
+      currentView = view;
+      const homeView = document.getElementById('homeView');
+      const themeView = document.getElementById('themeView');
+      const noteDetailView = document.getElementById('noteDetailView');
+      const navIcon = document.getElementById('navIcon');
+      const headerTitle = document.getElementById('headerTitle');
+      const headerSubtitle = document.getElementById('headerSubtitle');
 
-      if (!geminiApiKey) {
+      homeView.classList.add('hidden');
+      themeView.classList.add('hidden');
+      noteDetailView.classList.add('hidden');
+
+      if (view === 'home') {
+        homeView.classList.remove('hidden');
+        navIcon.textContent = '☰';
+        headerTitle.textContent = 'Notes';
+        headerSubtitle.textContent = `${notes.length} total entries`;
+      } else if (view === 'theme') {
+        currentTheme = param;
+        themeView.classList.remove('hidden');
+        navIcon.textContent = '‹';
+        headerTitle.textContent = `#${currentTheme}`;
+        const count = notes.filter(n => n.theme === currentTheme).length;
+        headerSubtitle.textContent = `${count} note(s) in this theme`;
+        renderThemeView();
+      } else if (view === 'note') {
+        currentNoteId = param;
+        noteDetailView.classList.remove('hidden');
+        navIcon.textContent = '‹';
+        renderNoteDetailView();
+      }
+    }
+
+    // Top Nav Button (either opens Sidebar or goes Back)
+    document.getElementById('navBtn').addEventListener('click', () => {
+      if (currentView === 'home') {
         openSidebar();
-        document.getElementById('apiKeyInput').focus();
-        showToast('Paste your Gemini API Key at the bottom of the menu');
-        return;
+      } else if (currentView === 'theme') {
+        navigateTo('home');
+      } else if (currentView === 'note') {
+        // Go back to the note's theme if we came from there, else home
+        navigateTo('home');
       }
+    });
 
-      const box = document.getElementById('aiResponseBox');
-      const textEl = document.getElementById('aiResponseText');
-      box.classList.remove('hidden');
-      textEl.textContent = 'Thinking...';
-
-      // Gather current topic notes & scrub PII before sending
-      const topicNotes = notes
-        .filter(n => activeTopic === 'ALL' || n.topic === activeTopic)
-        .slice(0, 30)
-        .map(n => `- [${n.topic}] ${scrubPII(n.title)}: ${scrubPII(n.synthesized)}`)
-        .join('\n');
-
-      const draftText = scrubPII(document.getElementById('rawInput').value.trim());
-
-      const systemPrompt = `You are a candid, pragmatic second brain and decision partner.
-Active Topic: "${activeTopic}"
-User's Notes in this Topic (anonymized):
-${topicNotes || '(No saved notes yet)'}
-${draftText ? `\nUnsaved text currently in user's input box:\n"${draftText}"` : ''}
-
-User Request: "${scrubPII(question)}"
-
-Instructions:
-- Reply in the same language as the user's request or notes (English or Spanish).
-- Be direct, analytical, and concise. Give a concrete second opinion, highlight trade-offs, or polish their text if asked.`;
-
-      try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${geminiApiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: systemPrompt }] }]
-          })
-        });
-
-        if (!res.ok) throw new Error('Request failed');
-        const data = await res.json();
-        lastAiResponse = data.candidates[0].content.parts[0].text.trim();
-        textEl.textContent = lastAiResponse;
-        if (!presetQuestion) qInput.value = '';
-      } catch (err) {
-        textEl.textContent = 'Error connecting to Gemini API. Check your API key or model selection.';
-      }
-    };
-
-    // --- RENDER UI ---
-    function getTopicCounts() {
-      const counts = {};
-      notes.forEach(n => {
-        counts[n.topic] = (counts[n.topic] || 0) + 1;
-      });
-      return counts;
-    }
-
-    function renderSidebar() {
-      const list = document.getElementById('sidebarTopicsList');
-      const counts = getTopicCounts();
-      const topics = Object.keys(counts).sort();
-
-      let html = `
-        <button
-          onclick="selectTopic('ALL')"
-          class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition ${
-            activeTopic === 'ALL' ? 'bg-indigo-600 text-white' : 'text-zinc-300 hover:bg-zinc-900'
-          }"
-        >
-          <span>🗂️ All Notes</span>
-          <span class="text-[11px] opacity-80">${notes.length}</span>
-        </button>
-      `;
-
-      topics.forEach(t => {
-        const active = activeTopic === t;
-        html += `
-          <button
-            onclick="selectTopic('${t.replace(/'/g, "\\'")}')"
-            class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition ${
-              active ? 'bg-indigo-600 text-white' : 'text-zinc-300 hover:bg-zinc-900'
-            }"
-          >
-            <span class="truncate"># ${t}</span>
-            <span class="text-[11px] opacity-80">${counts[t]}</span>
-          </button>
-        `;
-      });
-
-      list.innerHTML = html;
-
-      // Update API key status dot
-      const dot = document.getElementById('keyStatusDot');
-      dot.className = geminiApiKey
-        ? 'w-2 h-2 rounded-full bg-emerald-400'
-        : 'w-2 h-2 rounded-full bg-zinc-600';
-    }
-
-    function renderHeader() {
-      document.getElementById('currentTopicLabel').textContent = activeTopic === 'ALL' ? 'All Notes' : `# ${activeTopic}`;
-      const filteredCount = getFilteredNotes().length;
-      document.getElementById('currentTopicCount').textContent = filteredCount;
-
-      const isEs = currentLang.startsWith('es');
-      document.getElementById('langFlag').textContent = isEs ? '🇪🇸' : '🇬🇧';
-      document.getElementById('langCode').textContent = isEs ? 'ES' : 'EN';
-    }
-
-    function getFilteredNotes() {
+    // --- RENDER VIEWS ---
+    function renderHomeFeed() {
+      const container = document.getElementById('homeNotesFeed');
       const q = searchQuery.toLowerCase();
-      return notes.filter(n => {
-        const matchesTopic = activeTopic === 'ALL' || n.topic === activeTopic;
-        const matchesQuery = !q ||
+      const filtered = notes.filter(n => {
+        return !q ||
           n.title.toLowerCase().includes(q) ||
           n.synthesized.toLowerCase().includes(q) ||
-          n.topic.toLowerCase().includes(q);
-        return matchesTopic && matchesQuery;
+          n.theme.toLowerCase().includes(q) ||
+          n.raw.toLowerCase().includes(q);
       });
-    }
-
-    function renderNotes() {
-      const container = document.getElementById('notesFeed');
-      const filtered = getFilteredNotes();
 
       if (filtered.length === 0) {
-        container.innerHTML = `
-          <div class="text-center py-12 text-zinc-600 text-xs">
-            No notes here yet.
-          </div>
-        `;
+        container.innerHTML = `<div class="text-center py-12 text-zinc-600 text-xs">No notes found. Tap the mic to record.</div>`;
         return;
       }
 
       container.innerHTML = filtered.map(n => `
-        <article class="bg-zinc-900/90 border border-zinc-800/80 rounded-2xl p-4 transition">
-          <div class="flex items-start justify-between gap-2">
-            <div class="flex items-start gap-2.5 min-w-0">
-              <input
-                type="checkbox"
-                ${n.completed ? 'checked' : ''}
-                onchange="toggleComplete('${n.id}')"
-                class="mt-1 w-4 h-4 rounded accent-indigo-500 cursor-pointer shrink-0"
-              />
-              <div class="min-w-0">
-                <h3 class="text-sm font-semibold text-zinc-100 leading-snug ${n.completed ? 'line-through text-zinc-500' : ''}">
-                  ${n.title}
-                </h3>
-                <div class="flex items-center gap-2 mt-1">
-                  <button
-                    onclick="changeNoteTopic('${n.id}')"
-                    class="text-[11px] px-2 py-0.5 rounded-md bg-zinc-800 text-indigo-300 hover:bg-zinc-700"
-                    title="Tap to change topic"
-                  >
-                    #${n.topic}
-                  </button>
-                  <span class="text-[11px] text-zinc-500">${n.date || ''}</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="flex items-center gap-1 shrink-0">
-              <button
-                onclick="copySafeForAI('${n.id}')"
-                class="px-2 py-1 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-[11px] text-zinc-300"
-                title="Copy anonymized context for AI"
-              >
-                📋 AI
-              </button>
-              <button
-                onclick="deleteNote('${n.id}')"
-                class="px-2 py-1 rounded-lg text-zinc-500 hover:text-red-400 text-xs"
-              >
-                ✕
-              </button>
-            </div>
+        <article
+          onclick="navigateTo('note', '${n.id}')"
+          class="bg-zinc-900 border border-zinc-800/80 hover:border-zinc-700 rounded-2xl p-4 cursor-pointer active:scale-[0.99] transition shadow-sm"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-zinc-800 text-indigo-300">#${n.theme}</span>
+            <span class="text-[11px] text-zinc-500">${n.timestamp}</span>
           </div>
-
-          <div class="mt-2.5 text-sm text-zinc-200 whitespace-pre-line leading-relaxed ${n.completed ? 'line-through opacity-40' : ''}">${n.synthesized}</div>
+          <h3 class="text-sm font-semibold text-white mt-1.5 leading-snug">${n.title}</h3>
+          <p class="text-xs text-zinc-400 mt-1 line-clamp-2 leading-relaxed">${n.synthesized.replace(/^[•\s]+/gm, '')}</p>
         </article>
       `).join('');
     }
 
-    function renderAll() {
-      // If activeTopic no longer has notes, reset to ALL
-      if (activeTopic !== 'ALL' && !notes.some(n => n.topic === activeTopic)) {
-        activeTopic = 'ALL';
+    function renderThemeView() {
+      const container = document.getElementById('themeNotesFeed');
+      const themeNotes = notes.filter(n => n.theme === currentTheme);
+
+      if (themeNotes.length === 0) {
+        container.innerHTML = `<div class="text-center py-10 text-zinc-600 text-xs">No notes under #${currentTheme} yet.</div>`;
+        return;
       }
-      renderSidebar();
-      renderHeader();
-      renderNotes();
+
+      container.innerHTML = themeNotes.map(n => `
+        <article
+          onclick="navigateTo('note', '${n.id}')"
+          class="bg-zinc-900 border border-zinc-800/80 hover:border-zinc-700 rounded-2xl p-4 cursor-pointer active:scale-[0.99] transition"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[11px] text-zinc-500">${n.timestamp}</span>
+          </div>
+          <h3 class="text-sm font-semibold text-white mt-1 leading-snug">${n.title}</h3>
+          <p class="text-xs text-zinc-400 mt-1 line-clamp-2 leading-relaxed">${n.synthesized.replace(/^[•\s]+/gm, '')}</p>
+        </article>
+      `).join('');
     }
 
-    // --- ACTIONS & HANDLERS ---
+    function renderNoteDetailView() {
+      const note = notes.find(n => n.id === currentNoteId);
+      if (!note) {
+        navigateTo('home');
+        return;
+      }
+      document.getElementById('headerTitle').textContent = note.title;
+      document.getElementById('headerSubtitle').textContent = `#${note.theme}`;
+      document.getElementById('detailThemeBadge').textContent = `#${note.theme}`;
+      document.getElementById('detailTimestamp').textContent = note.timestamp;
+      document.getElementById('detailTitle').textContent = note.title;
+      document.getElementById('detailSynthesized').textContent = note.synthesized;
+      document.getElementById('detailRaw').textContent = `"${note.raw}"`;
+
+      // Safe Deletion Handler (Protects against accidental taps)
+      document.getElementById('detailDeleteBtn').onclick = () => {
+        if (confirm(`Delete "${note.title}" permanently?`)) {
+          notes = notes.filter(n => n.id !== note.id);
+          saveNotes();
+          showToast('Note deleted');
+          navigateTo('home');
+          renderAll();
+        }
+      };
+    }
+
+    function renderSidebar() {
+      const container = document.getElementById('sidebarThemesList');
+      const counts = {};
+      notes.forEach(n => counts[n.theme] = (counts[n.theme] || 0) + 1);
+
+      const defaultThemes = ['Dating', 'Social', 'Volleyball', 'Tech & Projects', 'Uni & Study', 'Tasks', 'Thoughts'];
+      const allThemes = Array.from(new Set([...defaultThemes, ...Object.keys(counts)])).sort();
+
+      container.innerHTML = allThemes.map(theme => {
+        const count = counts[theme] || 0;
+        return `
+          <button
+            onclick="selectThemeFromSidebar('${theme.replace(/'/g, "\\'")}')"
+            class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-zinc-300 hover:bg-zinc-900 transition"
+          >
+            <span># ${theme}</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full ${count > 0 ? 'bg-zinc-800 text-zinc-300' : 'text-zinc-600'}">${count}</span>
+          </button>
+        `;
+      }).join('');
+
+      document.getElementById('apiKeyDot').className = geminiApiKey
+        ? 'w-2 h-2 rounded-full bg-emerald-400'
+        : 'w-2 h-2 rounded-full bg-zinc-600';
+    }
+
+    window.selectThemeFromSidebar = (theme) => {
+      closeSidebar();
+      navigateTo('theme', theme);
+    };
+
+    function renderAll() {
+      renderSidebar();
+      if (currentView === 'home') renderHomeFeed();
+      else if (currentView === 'theme') renderThemeView();
+      else if (currentView === 'note') renderNoteDetailView();
+    }
+
+    // --- DEDICATED AI CHAT (THEME & EXACT NOTE) ---
+    async function queryGemini(systemPrompt, userQuery, model) {
+      if (!geminiApiKey) {
+        openSidebar();
+        showToast('Please paste your Gemini API Key in settings');
+        throw new Error('No API key');
+      }
+
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `${systemPrompt}\n\nUser Question:\n${scrubPII(userQuery)}` }] }]
+        })
+      });
+
+      if (!res.ok) throw new Error('API Request failed');
+      const data = await res.json();
+      return data.candidates[0].content.parts[0].text.trim();
+    }
+
+    // 1-on-1 Note AI
+    window.quickPromptNote = (q) => {
+      document.getElementById('noteAiInput').value = q;
+      askNoteAi();
+    };
+
+    async function askNoteAi() {
+      const input = document.getElementById('noteAiInput');
+      const q = input.value.trim();
+      if (!q) return;
+
+      const note = notes.find(n => n.id === currentNoteId);
+      if (!note) return;
+
+      const box = document.getElementById('noteAiResponseBox');
+      const text = document.getElementById('noteAiText');
+      const model = document.getElementById('noteModelSelect').value;
+      box.classList.remove('hidden');
+      text.textContent = 'Thinking...';
+
+      const sysPrompt = `You are a sharp, empathetic, and candid second brain.
+The user is asking you for insights or advice regarding this SPECIFIC note they recorded:
+
+[Note Title]: ${scrubPII(note.title)}
+[Theme]: ${note.theme}
+[Recorded At]: ${note.timestamp}
+[Synthesized Summary]:
+${scrubPII(note.synthesized)}
+
+[Raw Voice Ramble for complete emotional context]:
+"${scrubPII(note.raw)}"
+
+Instructions:
+- Be authentic, peer-like, and direct. No corporate fluff.
+- If it's about dating/crushes, analyze signals, body language, and give concrete next moves.
+- Respond in the same language as the user's question (English or Spanish).`;
+
+      try {
+        const reply = await queryGemini(sysPrompt, q, model);
+        text.textContent = reply;
+        input.value = '';
+      } catch (err) {
+        text.textContent = 'Error querying Gemini. Check your API key.';
+      }
+    }
+
+    // Theme AI
+    async function askThemeAi() {
+      const input = document.getElementById('themeAiInput');
+      const q = input.value.trim();
+      if (!q) return;
+
+      const box = document.getElementById('themeAiResponseBox');
+      const text = document.getElementById('themeAiText');
+      const model = document.getElementById('themeModelSelect').value;
+      box.classList.remove('hidden');
+      text.textContent = 'Analyzing theme notes...';
+
+      const themeNotes = notes
+        .filter(n => n.theme === currentTheme)
+        .slice(0, 20)
+        .map(n => `- [${n.timestamp}] ${scrubPII(n.title)}: ${scrubPII(n.synthesized)}`)
+        .join('\n');
+
+      const sysPrompt = `You are an executive advisor analyzing notes under the theme #${currentTheme}:
+${themeNotes || '(No notes in this theme yet)'}
+
+Instructions:
+- Answer the user's question by cross-referencing trends across these notes.
+- Respond in the same language as the user's question.`;
+
+      try {
+        const reply = await queryGemini(sysPrompt, q, model);
+        text.textContent = reply;
+        input.value = '';
+      } catch (err) {
+        text.textContent = 'Error querying Gemini.';
+      }
+    }
+
+    // --- SIDEBAR DRAWER CONTROLS ---
     function openSidebar() {
       const overlay = document.getElementById('sidebarOverlay');
       const drawer = document.getElementById('sidebarDrawer');
@@ -812,146 +830,64 @@ Instructions:
       setTimeout(() => overlay.classList.add('hidden'), 200);
     }
 
-    window.selectTopic = (topic) => {
-      activeTopic = topic;
-      closeSidebar();
-      renderAll();
-    };
-
-    window.toggleComplete = (id) => {
-      const note = notes.find(n => n.id === id);
-      if (note) {
-        note.completed = !note.completed;
-        saveState();
-        renderNotes();
-      }
-    };
-
-    window.deleteNote = (id) => {
-      notes = notes.filter(n => n.id !== id);
-      saveState();
-      renderAll();
-    };
-
-    window.changeNoteTopic = (id) => {
-      const note = notes.find(n => n.id === id);
-      if (!note) return;
-      const newTopic = prompt('Move to topic:', note.topic);
-      if (newTopic && newTopic.trim()) {
-        note.topic = newTopic.trim().replace(/^#/, '');
-        saveState();
-        renderAll();
-      }
-    };
-
-    window.copySafeForAI = async (id) => {
-      const note = notes.find(n => n.id === id);
-      if (!note) return;
-      const safeTitle = scrubPII(note.title);
-      const safeBody = scrubPII(note.synthesized);
-      const payload = `[Topic: ${note.topic}]\n${safeTitle}\n${safeBody}`;
-      await navigator.clipboard.writeText(payload);
-      showToast('Copied (Names & numbers scrubbed)');
-    };
-
-    // --- WIRE UP DOM EVENTS ---
-    document.getElementById('openSidebarBtn').addEventListener('click', openSidebar);
+    // --- EVENT LISTENERS ---
+    document.getElementById('floatingMicBtn').addEventListener('click', toggleRecording);
+    document.getElementById('doneBtn').addEventListener('click', handleDone);
     document.getElementById('closeSidebarBtn').addEventListener('click', closeSidebar);
     document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
 
+    // Language Toggle
     document.getElementById('langToggleBtn').addEventListener('click', () => {
       currentLang = currentLang.startsWith('en') ? 'es-ES' : 'en-US';
       localStorage.setItem('ramblesync_lang', currentLang);
+      const isEs = currentLang.startsWith('es');
+      document.getElementById('langFlag').textContent = isEs ? '🇪🇸' : '🇬🇧';
+      document.getElementById('langCode').textContent = isEs ? 'ES' : 'EN';
       if (isRecording) {
-        stopVoice();
-        setTimeout(startVoice, 150);
+        stopRecording();
+        setTimeout(startRecording, 200);
       }
-      renderHeader();
-      showToast(currentLang.startsWith('es') ? 'Idioma: Español' : 'Language: English');
+      showToast(isEs ? 'Idioma: Español' : 'Language: English');
     });
 
-    document.getElementById('micBtn').addEventListener('click', startVoice);
-    document.getElementById('recordingRedZone').addEventListener('click', stopVoice);
-    document.getElementById('doneBtn').addEventListener('click', () => handleDone('SYNTHESIZE'));
-    document.getElementById('proofreadBtn').addEventListener('click', () => handleDone('PROOFREAD'));
+    // Note & Theme AI buttons
+    document.getElementById('askNoteAiBtn').addEventListener('click', askNoteAi);
+    document.getElementById('askThemeAiBtn').addEventListener('click', askThemeAi);
 
-    // Model Selector
-    const modelSelect = document.getElementById('modelSelect');
-    modelSelect.value = selectedModel;
-    modelSelect.addEventListener('change', (e) => {
-      selectedModel = e.target.value;
-      localStorage.setItem('ramblesync_model', selectedModel);
-      showToast(`Model: ${selectedModel}`);
-    });
-
-    // Topic AI Question
-    document.getElementById('askAiBtn').addEventListener('click', () => askTopicAI());
-    document.getElementById('aiQuestionInput').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') askTopicAI();
-    });
-
-    document.getElementById('copyAiReplyBtn').addEventListener('click', async () => {
-      if (!lastAiResponse) return;
-      await navigator.clipboard.writeText(scrubPII(lastAiResponse));
-      showToast('AI reply copied');
-    });
-
-    document.getElementById('saveAiReplyBtn').addEventListener('click', () => {
-      if (!lastAiResponse) return;
-      const targetTopic = activeTopic === 'ALL' ? 'Thoughts' : activeTopic;
-      notes.unshift({
-        id: 'n-' + Date.now(),
-        title: 'AI Analysis — ' + targetTopic,
-        topic: targetTopic,
-        synthesized: lastAiResponse,
-        raw: lastAiResponse,
-        completed: false,
-        date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-      });
-      saveState();
-      document.getElementById('aiResponseBox').classList.add('hidden');
-      renderAll();
-      showToast('Saved to ' + targetTopic);
-    });
-
-    // Save API Key in Sidebar
+    // Save API Key
     document.getElementById('apiKeyInput').value = geminiApiKey;
     document.getElementById('saveKeyBtn').addEventListener('click', () => {
       geminiApiKey = document.getElementById('apiKeyInput').value.trim();
       localStorage.setItem('ramblesync_gemini_key', geminiApiKey);
       renderSidebar();
-      showToast(geminiApiKey ? 'API Key saved locally' : 'Switched to Local Engine');
+      showToast(geminiApiKey ? 'API Key saved' : 'Switched to local mode');
     });
 
-    // Copy All Filtered Notes (Scrubbed)
-    document.getElementById('copyTopicContextBtn').addEventListener('click', async () => {
-      const filtered = getFilteredNotes();
-      if (filtered.length === 0) return;
-      const text = filtered
-        .map(n => `[#${n.topic}] ${scrubPII(n.title)}: ${scrubPII(n.synthesized)}`)
-        .join('\n\n');
+    // Copy Context (Scrubbed)
+    document.getElementById('copyContextBtn').addEventListener('click', async () => {
+      const activeList = currentView === 'theme' ? notes.filter(n => n.theme === currentTheme) : notes;
+      const text = activeList.map(n => `[#${n.theme} | ${n.timestamp}] ${scrubPII(n.title)}\n${scrubPII(n.synthesized)}`).join('\n\n');
       await navigator.clipboard.writeText(text);
-      showToast(`Copied ${filtered.length} note(s) (PII scrubbed)`);
+      showToast(`Copied ${activeList.length} note(s) (Names & numbers scrubbed)`);
     });
 
-    // Bottom Search Bar
+    // Search Bar
     const searchInput = document.getElementById('searchInput');
     const clearSearchBtn = document.getElementById('clearSearchBtn');
     searchInput.addEventListener('input', (e) => {
       searchQuery = e.target.value;
       clearSearchBtn.classList.toggle('hidden', !searchQuery);
-      renderHeader();
-      renderNotes();
+      if (currentView !== 'home') navigateTo('home');
+      renderHomeFeed();
     });
     clearSearchBtn.addEventListener('click', () => {
       searchQuery = '';
       searchInput.value = '';
       clearSearchBtn.classList.add('hidden');
-      renderHeader();
-      renderNotes();
+      renderHomeFeed();
     });
 
-    // Backup & Restore JSON
+    // JSON Backup / Restore
     document.getElementById('exportBtn').addEventListener('click', () => {
       const blob = new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -970,7 +906,7 @@ Instructions:
           const imported = JSON.parse(ev.target.result);
           if (Array.isArray(imported)) {
             notes = imported;
-            saveState();
+            saveNotes();
             renderAll();
             showToast('Backup restored');
           }
@@ -981,7 +917,8 @@ Instructions:
       reader.readAsText(file);
     });
 
-    // Initial Render
+    // Init
+    navigateTo('home');
     renderAll();
   </script>
 </body>
