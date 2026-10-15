@@ -1,409 +1,459 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RambleSync — Voice Note Synthesizer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Notes</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    @keyframes pulse-ring {
-      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-      70% { transform: scale(1); box-shadow: 0 0 0 14px rgba(239, 68, 68, 0); }
-      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    * { -webkit-tap-highlight-color: transparent; }
+    body {
+      background-color: #09090b;
+      color: #f4f4f5;
+      padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+      padding-top: env(safe-area-inset-top);
     }
-    .recording-pulse {
-      animation: pulse-ring 1.8s infinite;
+    @keyframes pulse-red {
+      0%, 100% { background-color: rgba(220, 38, 38, 0.92); }
+      50% { background-color: rgba(153, 27, 27, 0.96); }
     }
+    .recording-banner {
+      animation: pulse-red 1.6s infinite ease-in-out;
+    }
+    /* Hide scrollbars cleanly */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans selection:bg-indigo-500 selection:text-white">
+<body class="min-h-screen font-sans antialiased selection:bg-indigo-500 selection:text-white">
 
-  <!-- Top Header -->
-  <header class="border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-20">
-    <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-600/30">
-          🎙️
-        </div>
-        <div>
-          <h1 class="text-xl font-bold tracking-tight text-white">RambleSync</h1>
-          <p class="text-xs text-slate-400">Speak freely. We strip the fluff & organize the rest.</p>
-        </div>
-      </div>
+  <!-- TOP MINIMAL BAR -->
+  <header class="sticky top-0 z-30 bg-zinc-950/85 backdrop-blur-md border-b border-zinc-800/80 px-4 py-3 flex items-center justify-between">
+    <button
+      id="openSidebarBtn"
+      class="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-200 active:scale-95 transition"
+      aria-label="Menu"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
 
-      <!-- Search Bar -->
-      <div class="relative flex-1 max-w-md min-w-[220px]">
-        <input
-          id="searchInput"
-          type="text"
-          placeholder="Search notes, ingredients, tasks... (Press /)"
-          class="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-10 pr-8 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-        <span class="absolute left-3.5 top-2.5 text-slate-400 text-sm">🔍</span>
-        <button id="clearSearchBtn" class="hidden absolute right-3 top-2.5 text-slate-400 hover:text-slate-200 text-xs">✕</button>
-      </div>
-
-      <!-- Actions -->
-      <div class="flex items-center gap-2">
-        <button
-          id="demoBtn"
-          class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 border border-slate-700 transition"
-          title="Load a sample voice ramble to see how synthesis works"
-        >
-          ✨ Try Sample Ramble
-        </button>
-        <button
-          id="settingsBtn"
-          class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-indigo-300 border border-slate-700 transition flex items-center gap-1.5"
-        >
-          <span>⚙️</span> <span id="aiModeBadge">Local Engine</span>
-        </button>
-      </div>
+    <!-- Current Topic Pill -->
+    <div class="flex items-center gap-2">
+      <span id="currentTopicLabel" class="text-sm font-semibold tracking-tight text-zinc-100">All Notes</span>
+      <span id="currentTopicCount" class="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">0</span>
     </div>
+
+    <!-- Language Toggle (EN / ES) -->
+    <button
+      id="langToggleBtn"
+      class="h-10 px-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-bold tracking-wider text-zinc-200 flex items-center gap-1.5 active:scale-95 transition"
+    >
+      <span id="langFlag">🇬🇧</span>
+      <span id="langCode">EN</span>
+    </button>
   </header>
 
-  <main class="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-    
-    <!-- Left Column: Voice Recorder & Live Transcript (4 cols on desktop) -->
-    <section class="lg:col-span-5 flex flex-col gap-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Voice Capture</h2>
-          <span id="recordingStatus" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400">Ready</span>
-        </div>
+  <!-- SLIDE-OUT SIDEBAR DRAWER -->
+  <div id="sidebarOverlay" class="fixed inset-0 bg-black/70 backdrop-blur-xs z-40 hidden opacity-0 transition-opacity duration-200"></div>
+  <aside
+    id="sidebarDrawer"
+    class="fixed top-0 left-0 bottom-0 w-72 bg-zinc-950 border-r border-zinc-800 z-50 transform -translate-x-full transition-transform duration-200 flex flex-col justify-between"
+    style="padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);"
+  >
+    <!-- Top: Dynamic Topics List -->
+    <div class="p-4 overflow-y-auto flex-1">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Topics</span>
+        <button id="closeSidebarBtn" class="text-zinc-400 hover:text-white p-1">✕</button>
+      </div>
+      <div id="sidebarTopicsList" class="space-y-1"></div>
+    </div>
 
-        <!-- Mic Button -->
-        <div class="flex flex-col items-center justify-center py-4">
+    <!-- Bottom: Settings & API Key -->
+    <div class="p-4 border-t border-zinc-800/90 bg-zinc-900/40 space-y-3">
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-[11px] font-medium text-zinc-400">Gemini API Key (AI Studio)</label>
+          <span id="keyStatusDot" class="w-2 h-2 rounded-full bg-zinc-600"></span>
+        </div>
+        <div class="flex gap-1.5">
+          <input
+            id="apiKeyInput"
+            type="password"
+            placeholder="Paste AIzaSy... key"
+            class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"
+          />
           <button
-            id="recordBtn"
-            class="w-20 h-20 rounded-full bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition flex items-center justify-center text-3xl shadow-lg shadow-indigo-600/30"
+            id="saveKeyBtn"
+            class="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white shrink-0"
           >
-            🎤
-          </button>
-          <p id="recordHint" class="text-xs text-slate-400 mt-3">Click to start rambling (or type/paste below)</p>
-        </div>
-
-        <!-- Raw Ramble Box -->
-        <div class="mt-2">
-          <label class="block text-xs text-slate-400 mb-1.5">Raw Ramble Transcript</label>
-          <textarea
-            id="rawInput"
-            rows="5"
-            placeholder="Um, so I was thinking we need to buy garlic, olive oil, and fresh basil for that pasta dish... Also remind me to email Sarah the project timeline by Friday. Oh and for the spicy tomato sauce recipe, simmer crushed tomatoes with chili flakes and 3 cloves of garlic for 20 minutes..."
-            class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
-          ></textarea>
-        </div>
-
-        <!-- Category Override & Synthesize Button -->
-        <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2">
-            <label class="text-xs text-slate-400">Category:</label>
-            <select
-              id="categorySelect"
-              class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="AUTO">✨ Auto-Detect (Split Topics)</option>
-              <option value="Tasks">✅ Tasks</option>
-              <option value="Cooking Recipes">🍳 Cooking Recipes</option>
-              <option value="Thoughts">💭 Thoughts</option>
-              <option value="Ideas">💡 Ideas</option>
-            </select>
-          </div>
-
-          <button
-            id="synthesizeBtn"
-            class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold text-sm text-white shadow-md shadow-indigo-600/20 transition flex items-center justify-center gap-2"
-          >
-            <span>⚡ Synthesize & Organize</span>
+            Save
           </button>
         </div>
-
-        <!-- Filler Stats Banner -->
-        <div id="cleanupBanner" class="hidden mt-4 p-3 rounded-xl bg-emerald-950/50 border border-emerald-800/60 text-emerald-300 text-xs flex items-center justify-between">
-          <span id="cleanupStatsText">Removed 8 filler words & organized notes.</span>
-          <button onclick="document.getElementById('cleanupBanner').classList.add('hidden')" class="text-emerald-400 hover:text-white">✕</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Right Column: Category Menu & Organized Notes (7 cols on desktop) -->
-    <section class="lg:col-span-7 flex flex-col gap-4">
-      
-      <!-- Category Filter Tabs -->
-      <div class="flex items-center gap-2 overflow-x-auto pb-1" id="categoryTabs">
-        <!-- Populated dynamically by JS -->
       </div>
 
-      <!-- Notes Grid -->
-      <div id="notesContainer" class="space-y-3">
-        <!-- Populated dynamically by JS -->
-      </div>
-    </section>
-  </main>
-
-  <!-- Gemini AI Settings Modal -->
-  <div id="settingsModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-white">Synthesis Engine Settings</h3>
-        <button id="closeModalBtn" class="text-slate-400 hover:text-white">✕</button>
-      </div>
-      <p class="text-xs text-slate-400 mb-4 leading-relaxed">
-        By default, RambleSync uses a fast built-in rule engine to strip filler words and categorize sentences. Add an optional <strong>Gemini API Key</strong> below to use <code class="text-indigo-300">gemini-2.5-flash</code> for deep semantic rewriting and recipe formatting.
-      </p>
-      <label class="block text-xs font-medium text-slate-300 mb-1">Gemini API Key (stored locally in browser)</label>
-      <input
-        id="apiKeyInput"
-        type="password"
-        placeholder="AIzaSy..."
-        class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      />
-      <div class="flex justify-end gap-2">
-        <button id="clearKeyBtn" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300">Use Local Engine</button>
-        <button id="saveKeyBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white">Save Key</button>
+      <!-- Local Memory Backup / Restore -->
+      <div class="flex items-center gap-2 pt-1">
+        <button
+          id="exportBtn"
+          class="flex-1 py-1.5 px-2 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 hover:bg-zinc-800"
+        >
+          ⬇ Backup JSON
+        </button>
+        <label class="flex-1 py-1.5 px-2 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 hover:bg-zinc-800 text-center cursor-pointer">
+          ⬆ Restore
+          <input id="importInput" type="file" accept=".json" class="hidden" />
+        </label>
       </div>
     </div>
-  </div>
+  </aside>
+
+  <!-- MAIN WORKSPACE -->
+  <main class="max-w-2xl mx-auto px-3 pt-3 space-y-4">
+
+    <!-- VOICE & TEXT CAPTURE ZONE -->
+    <section class="bg-zinc-900/90 border border-zinc-800/90 rounded-2xl overflow-hidden shadow-lg">
+      
+      <!-- ACTIVE RECORDING RED ZONE (1/4 Screen Height when speaking) -->
+      <button
+        id="recordingRedZone"
+        class="hidden w-full h-[22vh] recording-banner flex flex-col items-center justify-center text-white px-4 transition active:scale-[0.99]"
+      >
+        <div class="flex items-center gap-2.5">
+          <span class="w-3 h-3 rounded-full bg-white animate-ping"></span>
+          <span id="recordingLangLabel" class="text-lg font-bold tracking-wide">SPEAKING (EN)</span>
+        </div>
+        <span class="text-xs text-red-100 mt-1.5 opacity-90">Tap anywhere on this red bar to stop</span>
+      </button>
+
+      <!-- Textbox + Controls -->
+      <div class="p-3">
+        <textarea
+          id="rawInput"
+          rows="3"
+          placeholder="..."
+          class="w-full bg-zinc-950/90 border border-zinc-800/80 rounded-xl p-3 text-base text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 resize-none transition-all duration-200"
+        ></textarea>
+
+        <div class="mt-2.5 flex items-center gap-2">
+          <!-- Big Mic Button (Disappears while recording) -->
+          <button
+            id="micBtn"
+            class="flex-1 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-[0.98] text-white font-medium text-sm flex items-center justify-center gap-2 transition border border-zinc-700/70"
+          >
+            <span>🎙️</span>
+          </button>
+
+          <!-- Jarvis Quick Proofread Button -->
+          <button
+            id="proofreadBtn"
+            class="px-3.5 py-3 rounded-xl bg-zinc-950 hover:bg-zinc-800 active:scale-[0.98] text-zinc-300 border border-zinc-800 text-xs font-medium transition"
+            title="Proofread & Polish draft"
+          >
+            ✨ Polish
+          </button>
+
+          <!-- Done Button -->
+          <button
+            id="doneBtn"
+            class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-semibold text-sm transition shadow-md shadow-indigo-600/20"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TOPIC AI PARTNER (SECOND BRAIN) -->
+    <section class="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs font-semibold text-indigo-400">🧠 Topic AI</span>
+          <!-- Model Selector Switch -->
+          <select
+            id="modelSelect"
+            class="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-[11px] text-zinc-300 focus:outline-none focus:border-indigo-500"
+          >
+            <option value="gemini-2.5-flash">Flash 2.5 (Balanced)</option>
+            <option value="gemini-2.5-flash-lite">Flash-Lite 2.5 (Fastest)</option>
+            <option value="gemini-2.5-pro">Pro 2.5 (Deep Decision)</option>
+            <option value="gemini-2.0-flash">Flash 2.0</option>
+          </select>
+        </div>
+
+        <!-- Quick Decision Prompts -->
+        <div class="flex items-center gap-1 overflow-x-auto no-scrollbar">
+          <button onclick="askTopicAI('Give me your honest second opinion on these notes.')" class="px-2 py-1 rounded-lg bg-zinc-800/90 hover:bg-zinc-700 text-[11px] text-zinc-300 whitespace-nowrap">Second opinion</button>
+          <button onclick="askTopicAI('What blind spots or missing details do you see here?')" class="px-2 py-1 rounded-lg bg-zinc-800/90 hover:bg-zinc-700 text-[11px] text-zinc-300 whitespace-nowrap">Blind spots</button>
+          <button onclick="askTopicAI('Help me prioritize and make a decision based on this.')" class="px-2 py-1 rounded-lg bg-zinc-800/90 hover:bg-zinc-700 text-[11px] text-zinc-300 whitespace-nowrap">Decide</button>
+        </div>
+      </div>
+
+      <div class="flex gap-2">
+        <input
+          id="aiQuestionInput"
+          type="text"
+          placeholder="Ask about this topic or paste draft to critique..."
+          class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
+        />
+        <button
+          id="askAiBtn"
+          class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-100 shrink-0 active:scale-95 transition"
+        >
+          Ask
+        </button>
+      </div>
+
+      <!-- AI Response Output Drawer -->
+      <div id="aiResponseBox" class="hidden mt-3 pt-3 border-t border-zinc-800 text-sm text-zinc-200 space-y-2">
+        <div id="aiResponseText" class="whitespace-pre-line leading-relaxed text-xs sm:text-sm text-zinc-200"></div>
+        <div class="flex items-center justify-end gap-2 pt-1">
+          <button id="copyAiReplyBtn" class="px-2.5 py-1 rounded-lg bg-zinc-800 text-[11px] text-zinc-300 hover:text-white">📋 Copy</button>
+          <button id="saveAiReplyBtn" class="px-2.5 py-1 rounded-lg bg-indigo-950 border border-indigo-800 text-[11px] text-indigo-300">📌 Save to Topic</button>
+          <button onclick="document.getElementById('aiResponseBox').classList.add('hidden')" class="px-2 py-1 text-[11px] text-zinc-500 hover:text-zinc-300">Close</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- NOTES FEED -->
+    <section id="notesFeed" class="space-y-2.5 pb-6"></section>
+
+  </main>
+
+  <!-- SAFARI-STYLE BOTTOM SEARCH BAR -->
+  <nav
+    class="fixed bottom-0 left-0 right-0 z-30 bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-800/90 px-3 pt-2"
+    style="padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));"
+  >
+    <div class="max-w-2xl mx-auto flex items-center gap-2">
+      <div class="relative flex-1">
+        <span class="absolute left-3.5 top-2.5 text-zinc-500 text-sm pointer-events-none">🔍</span>
+        <input
+          id="searchInput"
+          type="search"
+          placeholder="Search notes, topics, words..."
+          class="w-full bg-zinc-900 border border-zinc-800 rounded-2xl pl-9 pr-8 py-2 text-base text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600"
+        />
+        <button
+          id="clearSearchBtn"
+          class="hidden absolute right-3 top-2.5 text-zinc-400 hover:text-white text-xs"
+        >
+          ✕
+        </button>
+      </div>
+      <button
+        id="copyTopicContextBtn"
+        class="px-3 py-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs font-medium text-zinc-300 active:scale-95 transition shrink-0"
+        title="Copy all notes in this topic (anonymized for AI)"
+      >
+        📋 Copy Topic
+      </button>
+    </div>
+  </nav>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 hidden bg-zinc-800 border border-zinc-700 text-zinc-100 px-4 py-2 rounded-full text-xs font-medium shadow-xl"></div>
 
   <script>
-    // --- STATE & CONFIG ---
-    const CATEGORIES = [
-      { id: 'ALL', label: 'All Notes', icon: '🗂️', badgeClass: 'bg-slate-800 text-slate-300' },
-      { id: 'Tasks', label: 'Tasks', icon: '✅', badgeClass: 'bg-emerald-950 text-emerald-300 border-emerald-800' },
-      { id: 'Cooking Recipes', label: 'Cooking Recipes', icon: '🍳', badgeClass: 'bg-amber-950 text-amber-300 border-amber-800' },
-      { id: 'Thoughts', label: 'Thoughts', icon: '💭', badgeClass: 'bg-sky-950 text-sky-300 border-sky-800' },
-      { id: 'Ideas', label: 'Ideas', icon: '💡', badgeClass: 'bg-purple-950 text-purple-300 border-purple-800' }
-    ];
-
-    let notes = JSON.parse(localStorage.getItem('ramblesync_notes') || '[]');
-    let activeCategory = 'ALL';
+    // --- STATE ---
+    let notes = JSON.parse(localStorage.getItem('ramblesync_v2_notes') || localStorage.getItem('ramblesync_notes') || '[]');
+    let activeTopic = 'ALL';
     let searchQuery = '';
+    let currentLang = localStorage.getItem('ramblesync_lang') || 'en-US'; // 'en-US' or 'es-ES'
     let geminiApiKey = localStorage.getItem('ramblesync_gemini_key') || '';
+    let selectedModel = localStorage.getItem('ramblesync_model') || 'gemini-2.5-flash';
+    let lastAiResponse = '';
 
-    // Seed initial example if empty
-    if (notes.length === 0) {
-      notes = [
-        {
-          id: 'seed-1',
-          title: 'Creamy Garlic Lemon Pasta',
-          category: 'Cooking Recipes',
-          synthesized: '• Ingredients: 200g spaghetti, 4 cloves minced garlic, zest & juice of 1 lemon, 1/2 cup parmesan, olive oil, pasta water.\n• Steps: Sauté garlic in olive oil for 2 mins. Toss in al dente pasta, lemon juice, parmesan, and a splash of starchy pasta water until glossy.',
-          raw: 'Um okay so for that lemon pasta recipe I made yesterday, you basically take like 200 grams of spaghetti and uh four cloves of garlic minced, sauté it in olive oil for like two minutes, then toss in the pasta with lemon juice, zest, half a cup of parmesan and uh some pasta water so it gets super glossy.',
-          fillersRemoved: 7,
-          completed: false,
-          createdAt: new Date().toLocaleDateString()
-        },
-        {
-          id: 'seed-2',
-          title: 'Send Q4 Budget & Call Dentist',
-          category: 'Tasks',
-          synthesized: '• Email the updated Q4 budget spreadsheet to Alex before 3 PM.\n• Call the dental clinic to reschedule next Tuesday\'s cleaning.',
-          raw: 'Uh I really need to remember to email the updated Q4 budget spreadsheet to Alex before 3 PM and also like call the dental clinic to reschedule next Tuesday\'s cleaning.',
-          fillersRemoved: 3,
-          completed: false,
-          createdAt: new Date().toLocaleDateString()
-        }
-      ];
-      saveNotes();
+    // Migrate old category property if present
+    notes = notes.map(n => ({
+      ...n,
+      topic: n.topic || n.category || 'Thoughts'
+    }));
+
+    function saveState() {
+      localStorage.setItem('ramblesync_v2_notes', JSON.stringify(notes));
     }
 
-    // --- SPEECH RECOGNITION SETUP ---
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition = null;
-    let isRecording = false;
-
-    if (SpeechRecognition) {
-      recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      let finalTranscript = '';
-
-      recognition.onstart = () => {
-        isRecording = true;
-        finalTranscript = document.getElementById('rawInput').value;
-        if (finalTranscript && !finalTranscript.endsWith(' ')) finalTranscript += ' ';
-        updateRecordingUI(true);
-      };
-
-      recognition.onresult = (event) => {
-        let interimTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript + ' ';
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-        document.getElementById('rawInput').value = finalTranscript + interimTranscript;
-      };
-
-      recognition.onerror = (event) => {
-        console.warn('Speech recognition error:', event.error);
-        stopRecording();
-      };
-
-      recognition.onend = () => {
-        if (isRecording) stopRecording();
-      };
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.remove('hidden');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => t.classList.add('hidden'), 2200);
     }
 
-    function toggleRecording() {
-      if (!recognition) {
-        alert('Web Speech API is not supported in this browser. Try Chrome, Edge, or Safari—or type/paste your ramble directly!');
-        return;
-      }
-      if (isRecording) {
-        stopRecording();
-      } else {
-        recognition.start();
-      }
+    // --- PII ANONYMIZER (Non-linking scrubber for AI) ---
+    function scrubPII(text) {
+      if (!text) return '';
+      let out = text;
+
+      // 1. Redact emails
+      out = out.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[email]');
+
+      // 2. Redact phone numbers, credit cards, or long ID numbers (6+ digits)
+      out = out.replace(/(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?){2,3}\d{3,4}/g, '[number]');
+      out = out.replace(/\b\d{6,}\b/g, '[id]');
+
+      // 3. Convert Multi-Word Full Names ("Mike Phillips McCracken") -> First Name Only ("Mike")
+      const nonNames = new Set([
+        'All', 'Notes', 'Tasks', 'Cooking', 'Recipes', 'Thoughts', 'Ideas',
+        'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+        'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December',
+        'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'
+      ]);
+
+      out = out.replace(/\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{1,15})(?:\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{1,18})){1,2}\b/g, (match, firstName) => {
+        if (nonNames.has(firstName)) return match;
+        return firstName;
+      });
+
+      return out;
     }
 
-    function stopRecording() {
-      isRecording = false;
-      if (recognition) recognition.stop();
-      updateRecordingUI(false);
-    }
-
-    function updateRecordingUI(recording) {
-      const btn = document.getElementById('recordBtn');
-      const status = document.getElementById('recordingStatus');
-      const hint = document.getElementById('recordHint');
-
-      if (recording) {
-        btn.classList.remove('bg-indigo-600', 'hover:bg-indigo-500');
-        btn.classList.add('bg-red-600', 'hover:bg-red-500', 'recording-pulse');
-        btn.textContent = '⏹️';
-        status.textContent = 'Listening...';
-        status.className = 'text-xs px-2.5 py-1 rounded-full bg-red-950 text-red-300 border border-red-800';
-        hint.textContent = 'Speak naturally! Click stop when finished.';
-      } else {
-        btn.classList.add('bg-indigo-600', 'hover:bg-indigo-500');
-        btn.classList.remove('bg-red-600', 'hover:bg-red-500', 'recording-pulse');
-        btn.textContent = '🎤';
-        status.textContent = 'Ready';
-        status.className = 'text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400';
-        hint.textContent = 'Click to start rambling (or type/paste below)';
-      }
-    }
-
-    // --- LOCAL FILLER REMOVAL & SYNTHESIS ENGINE ---
-    const FILLER_PATTERNS = [
+    // --- BILINGUAL FILLER SCRUBBER (EN + ES) ---
+    const FILLERS_EN = [
       /\b(um+|uh+|er+|ah+|hmm+)\b/gi,
       /\b(you know|i mean|sort of|kind of|basically|literally|honestly|actually)\b/gi,
       /\b(so yeah|yeah so|like i said)\b/gi,
       /(?:^|\s)like(?=\s*,|\s+uh|\s+um|\s+i\b|\s+we\b|\s+you\b|\s+\d)/gi
     ];
 
-    function cleanFillers(rawText) {
+    const FILLERS_ES = [
+      /\b(eh+|em+|este+|mm+)\b/gi,
+      /\b(o sea|en plan|es decir|digamos|como que|pues nada|bueno pues)\b/gi,
+      /\b(sabes|¿sabes\?|me explico|básicamente|literalmente|sinceramente)\b/gi,
+      /(?:^|\s)tipo(?=\s*,|\s+que\b|\s+yo\b|\s+nosotros\b|\s+\d)/gi
+    ];
+
+    function cleanBilingualFillers(rawText) {
       let cleaned = rawText;
       let removedCount = 0;
 
-      FILLER_PATTERNS.forEach((regex) => {
+      [...FILLERS_EN, ...FILLERS_ES].forEach((regex) => {
         const matches = cleaned.match(regex);
         if (matches) removedCount += matches.length;
         cleaned = cleaned.replace(regex, ' ');
       });
 
-      // Remove duplicate stuttered words (e.g., "the the", "I I")
+      // Remove accidental word stutters ("the the", "el el", "no no")
       cleaned = cleaned.replace(/\b(\w+)\s+\1\b/gi, '$1');
-      // Clean up orphaned commas and extra whitespace
       cleaned = cleaned.replace(/\s*,\s*,+/g, ',').replace(/^[\s,]+|[\s,]+$/g, '').replace(/\s{2,}/g, ' ');
       return { cleaned, removedCount };
     }
 
-    function detectCategory(text) {
-      const lower = text.toLowerCase();
-      const recipeScore = (lower.match(/\b(recipe|cook|bake|simmer|boil|fry|sauté|saute|garlic|onion|tablespoon|teaspoon|cup|grams|oz|oven|degrees|ingredients|pasta|sauce|chicken|salt|pepper|olive oil|flour|sugar)\b/g) || []).length;
-      const taskScore = (lower.match(/\b(todo|to-do|remind me|need to|have to|must|don't forget|call|email|buy|schedule|deadline|by friday|by tomorrow|appointment|pay|pick up)\b/g) || []).length;
-      const ideaScore = (lower.match(/\b(idea|what if|build an app|feature|startup|project|concept|invention|design|prototype)\b/g) || []).length;
+    // --- LOCAL DYNAMIC TOPIC DETECTOR (Fallback when no API key) ---
+    function inferLocalTopic(text) {
+      // Check if user explicitly tagged #Topic
+      const hashMatch = text.match(/#([a-zA-Z0-9_áéíóúñÁÉÍÓÚÑ]+)/);
+      if (hashMatch) {
+        const tag = hashMatch[1];
+        return tag.charAt(0).toUpperCase() + tag.slice(1);
+      }
 
-      if (recipeScore >= 2) return 'Cooking Recipes';
-      if (taskScore >= 1) return 'Tasks';
-      if (ideaScore >= 1) return 'Ideas';
-      return 'Thoughts';
+      const lower = text.toLowerCase();
+      const rules = [
+        { topic: 'Cooking', regex: /\b(recipe|cook|bake|simmer|boil|fry|garlic|onion|pasta|sauce|chicken|olive oil|grams|receta|cocinar|horno|ingredientes|pollo|salsa|ajo|cebolla)\b/g, min: 2 },
+        { topic: 'Tasks', regex: /\b(todo|remind me|need to|have to|must|call|email|buy|schedule|deadline|tomorrow|friday|tengo que|recordar|comprar|llamar|enviar|mañana|pendiente)\b/g, min: 1 },
+        { topic: 'Tech & Hardware', regex: /\b(server|docker|code|bug|laptop|pc|macbook|iphone|ipad|battery|sensor|api|github|código|servidor|batería|pantalla|reparar)\b/g, min: 1 },
+        { topic: 'Uni & Study', regex: /\b(exam|study|lecture|professor|math|physics|assignment|calculus|examen|estudiar|clase|universidad|apuntes|mates|física)\b/g, min: 1 },
+        { topic: 'Fitness', regex: /\b(workout|gym|run|bike|cycling|volleyball|training|sets|reps|entreno|gimnasio|bici|voleibol|correr)\b/g, min: 1 },
+        { topic: 'Ideas', regex: /\b(idea|what if|startup|project|build|concept|feature|proyecto|crear|inventar|imagina)\b/g, min: 1 }
+      ];
+
+      for (const rule of rules) {
+        const hits = (lower.match(rule.regex) || []).length;
+        if (hits >= rule.min) return rule.topic;
+      }
+
+      return activeTopic !== 'ALL' ? activeTopic : 'Thoughts';
     }
 
-    function generateTitle(text, category) {
-      let stripped = text
-        .replace(/^(so|okay|alright|well|also|and|oh and|remind me to|i need to|i have to|we need to|for the|thinking about)\s+/i, '')
+    function makeShortTitle(text, fallbackTopic) {
+      const stripped = text
+        .replace(/#[a-zA-Z0-9_áéíóúñÁÉÍÓÚÑ]+/g, '')
+        .replace(/^(so|okay|well|also|remind me to|i need to|tengo que|bueno|entonces|oye)\s+/i, '')
         .trim();
       const words = stripped.split(/\s+/).slice(0, 6).join(' ').replace(/[.,;!?]+$/, '');
-      if (!words) return category + ' Note';
+      if (!words) return fallbackTopic;
       return words.charAt(0).toUpperCase() + words.slice(1);
     }
 
-    function localSynthesize(rawText, forcedCategory) {
-      const { cleaned, removedCount } = cleanFillers(rawText);
-
-      // Split into logical segments if user rambled about multiple things ("Also...", "Oh and...", sentence boundaries)
+    function localProcessRamble(rawText) {
+      const { cleaned, removedCount } = cleanBilingualFillers(rawText);
       const segments = cleaned
-        .split(/(?:\.\s+|\b(?:also|oh and|another thing is|on another note)\b)/i)
+        .split(/(?:\.\s+|\b(?:also|oh and|another thing|además|por otro lado|también recuerda)\b)/i)
         .map(s => s.trim())
-        .filter(s => s.length > 4);
+        .filter(s => s.length > 3);
 
-      if (forcedCategory !== 'AUTO' || segments.length <= 1) {
-        const cat = forcedCategory === 'AUTO' ? detectCategory(cleaned) : forcedCategory;
-        const formatted = segments.length > 1
-          ? segments.map(s => '• ' + s.charAt(0).toUpperCase() + s.slice(1)).join('\n')
-          : cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-
+      if (segments.length <= 1) {
+        const topic = inferLocalTopic(cleaned);
+        const body = cleaned.replace(/#[a-zA-Z0-9_áéíóúñÁÉÍÓÚÑ]+/g, '').trim();
         return {
+          removedCount,
           items: [{
-            title: generateTitle(cleaned, cat),
-            category: cat,
-            synthesized: formatted
-          }],
-          removedCount
+            title: makeShortTitle(body, topic),
+            topic,
+            synthesized: body.charAt(0).toUpperCase() + body.slice(1)
+          }]
         };
       }
 
-      // Group segments by detected category
       const grouped = {};
       segments.forEach(seg => {
-        const cat = detectCategory(seg);
-        if (!grouped[cat]) grouped[cat] = [];
-        const sentence = seg.charAt(0).toUpperCase() + seg.slice(1);
-        grouped[cat].push(sentence.endsWith('.') ? sentence : sentence + '.');
+        const topic = inferLocalTopic(seg);
+        if (!grouped[topic]) grouped[topic] = [];
+        const cleanSeg = seg.replace(/#[a-zA-Z0-9_áéíóúñÁÉÍÓÚÑ]+/g, '').trim();
+        const formatted = cleanSeg.charAt(0).toUpperCase() + cleanSeg.slice(1);
+        grouped[topic].push(formatted.endsWith('.') ? formatted : formatted + '.');
       });
 
-      const items = Object.keys(grouped).map(cat => {
-        const lines = grouped[cat];
-        return {
-          title: generateTitle(lines[0], cat),
-          category: cat,
-          synthesized: lines.length > 1 ? lines.map(l => '• ' + l).join('\n') : lines[0]
-        };
-      });
+      const items = Object.keys(grouped).map(topic => ({
+        title: makeShortTitle(grouped[topic][0], topic),
+        topic,
+        synthesized: grouped[topic].length > 1 ? grouped[topic].map(l => '• ' + l).join('\n') : grouped[topic][0]
+      }));
 
-      return { items, removedCount };
+      return { removedCount, items };
     }
 
-    // --- OPTIONAL GEMINI AI SYNTHESIS ---
-    async function geminiSynthesize(rawText, forcedCategory) {
-      const prompt = `You are a voice-note synthesizer. Take the user's raw voice ramble, remove all filler words (um, uh, like, you know, basically), and synthesize it into clean, structured notes.
-If the user rambled about multiple distinct topics (e.g., a cooking recipe AND a task), split them into separate items.
-Allowed categories: "Tasks", "Cooking Recipes", "Thoughts", "Ideas".
-${forcedCategory !== 'AUTO' ? `Force all items into category: "${forcedCategory}".` : ''}
+    // --- GEMINI AI RAMBLE PROCESSOR ---
+    async function geminiProcessRamble(rawText, mode = 'SYNTHESIZE') {
+      const existingTopics = [...new Set(notes.map(n => n.topic))];
 
-Return ONLY valid JSON matching this schema:
+      const prompt = mode === 'PROOFREAD'
+        ? `You are Jarvis, a sharp executive proofreader. Clean up this voice ramble, remove all filler words, fix grammar, and turn it into a polished, natural-sounding message or draft in the SAME language the user spoke (English or Spanish). Do NOT add robotic fluff.
+Return ONLY valid JSON:
+{
+  "removedCount": number,
+  "items": [
+    { "title": "Polished Draft Title", "topic": "Drafts", "synthesized": "The clean, ready-to-send text" }
+  ]
+}
+Raw input: """${rawText}"""`
+        : `Take this raw voice ramble (in English, Spanish, or mixed), strip all filler words, and organize it into concise notes.
+Keep the output in the SAME language as the input.
+If the user covers multiple separate topics in one ramble, split them into separate items.
+Reuse existing topics if they fit: ${JSON.stringify(existingTopics)}, OR create a concise 1-2 word topic name (e.g. "Tasks", "Cooking", "Hardware", "Uni", "Ideas", "Fitness", "Thoughts").
+${activeTopic !== 'ALL' ? `If the topic is ambiguous, default to "${activeTopic}".` : ''}
+
+Return ONLY valid JSON:
 {
   "removedCount": number,
   "items": [
     {
       "title": "Short crisp title",
-      "category": "Tasks" | "Cooking Recipes" | "Thoughts" | "Ideas",
+      "topic": "Dynamic Topic Name",
       "synthesized": "Clean bulleted or structured text"
     }
   ]
 }
+Raw input: """${rawText}"""`;
 
-Raw voice ramble:
-"""${rawText}"""`;
-
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${geminiApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -412,187 +462,359 @@ Raw voice ramble:
         })
       });
 
-      if (!response.ok) throw new Error('Gemini API request failed');
-      const data = await response.json();
-      const jsonText = data.candidates[0].content.parts[0].text;
-      return JSON.parse(jsonText);
+      if (!res.ok) throw new Error('API Error');
+      const data = await res.json();
+      return JSON.parse(data.candidates[0].content.parts[0].text);
     }
 
-    // --- HANDLE SYNTHESIZE CLICK ---
-    async function handleSynthesize() {
+    // --- VOICE RECORDING (QUARTER-SCREEN RED BANNER FLOW) ---
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let isRecording = false;
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      let baseTranscript = '';
+
+      recognition.onstart = () => {
+        isRecording = true;
+        const input = document.getElementById('rawInput');
+        baseTranscript = input.value;
+        if (baseTranscript && !baseTranscript.endsWith(' ')) baseTranscript += ' ';
+        setRecordingUI(true);
+      };
+
+      recognition.onresult = (event) => {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            baseTranscript += event.results[i][0].transcript + ' ';
+          } else {
+            interim += event.results[i][0].transcript;
+          }
+        }
+        const input = document.getElementById('rawInput');
+        input.value = baseTranscript + interim;
+        input.scrollTop = input.scrollHeight;
+      };
+
+      recognition.onerror = () => stopVoice();
+      recognition.onend = () => { if (isRecording) stopVoice(); };
+    }
+
+    function startVoice() {
+      if (!recognition) {
+        showToast('Speech API not supported in this browser');
+        return;
+      }
+      recognition.lang = currentLang;
+      recognition.start();
+    }
+
+    function stopVoice() {
+      isRecording = false;
+      if (recognition) {
+        try { recognition.stop(); } catch (e) {}
+      }
+      setRecordingUI(false);
+    }
+
+    function setRecordingUI(recording) {
+      const redZone = document.getElementById('recordingRedZone');
+      const micBtn = document.getElementById('micBtn');
+      const rawInput = document.getElementById('rawInput');
+      const langLabel = document.getElementById('recordingLangLabel');
+
+      if (recording) {
+        redZone.classList.remove('hidden');
+        micBtn.classList.add('hidden');
+        rawInput.rows = 6;
+        langLabel.textContent = currentLang.startsWith('es') ? 'HABLANDO (ES)' : 'SPEAKING (EN)';
+      } else {
+        redZone.classList.add('hidden');
+        micBtn.classList.remove('hidden');
+        rawInput.rows = 3;
+      }
+    }
+
+    // --- SUBMIT ("DONE" & "POLISH") ---
+    async function handleDone(mode = 'SYNTHESIZE') {
+      if (isRecording) stopVoice();
       const rawInput = document.getElementById('rawInput');
       const rawText = rawInput.value.trim();
       if (!rawText) return;
 
-      if (isRecording) stopRecording();
-
-      const forcedCategory = document.getElementById('categorySelect').value;
-      const btn = document.getElementById('synthesizeBtn');
-      btn.disabled = true;
-      btn.innerHTML = '<span>⏳ Synthesizing...</span>';
+      const doneBtn = document.getElementById('doneBtn');
+      const proofreadBtn = document.getElementById('proofreadBtn');
+      doneBtn.disabled = true;
+      proofreadBtn.disabled = true;
+      doneBtn.textContent = '...';
 
       try {
         let result;
         if (geminiApiKey) {
           try {
-            result = await geminiSynthesize(rawText, forcedCategory);
-          } catch (e) {
-            console.warn('Falling back to local engine:', e);
-            result = localSynthesize(rawText, forcedCategory);
+            result = await geminiProcessRamble(rawText, mode);
+          } catch (err) {
+            result = localProcessRamble(rawText);
           }
         } else {
-          result = localSynthesize(rawText, forcedCategory);
+          result = localProcessRamble(rawText);
+          if (mode === 'PROOFREAD' && result.items.length > 0) {
+            result.items[0].topic = 'Drafts';
+          }
         }
 
-        result.items.forEach((item) => {
+        result.items.forEach(item => {
           notes.unshift({
-            id: 'note-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+            id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
             title: item.title,
-            category: item.category,
+            topic: item.topic,
             synthesized: item.synthesized,
             raw: rawText,
-            fillersRemoved: result.removedCount || 0,
             completed: false,
-            createdAt: new Date().toLocaleDateString()
+            date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
           });
         });
 
-        saveNotes();
+        saveState();
         rawInput.value = '';
-
-        // Show banner
-        const banner = document.getElementById('cleanupBanner');
-        const statsText = document.getElementById('cleanupStatsText');
-        statsText.textContent = `✨ Synthesized into ${result.items.length} note(s) and stripped ${result.removedCount || 0} filler words.`;
-        banner.classList.remove('hidden');
-
         renderAll();
+        showToast(mode === 'PROOFREAD' ? '✨ Draft polished & saved' : 'Saved');
       } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<span>⚡ Synthesize & Organize</span>';
+        doneBtn.disabled = false;
+        proofreadBtn.disabled = false;
+        doneBtn.textContent = 'Done';
       }
     }
 
-    // --- RENDER FUNCTIONS ---
-    function saveNotes() {
-      localStorage.setItem('ramblesync_notes', JSON.stringify(notes));
+    // --- TOPIC AI PARTNER (DECISION & SECOND OPINION) ---
+    window.askTopicAI = async function(presetQuestion) {
+      const qInput = document.getElementById('aiQuestionInput');
+      const question = (presetQuestion || qInput.value).trim();
+      if (!question) return;
+
+      if (!geminiApiKey) {
+        openSidebar();
+        document.getElementById('apiKeyInput').focus();
+        showToast('Paste your Gemini API Key at the bottom of the menu');
+        return;
+      }
+
+      const box = document.getElementById('aiResponseBox');
+      const textEl = document.getElementById('aiResponseText');
+      box.classList.remove('hidden');
+      textEl.textContent = 'Thinking...';
+
+      // Gather current topic notes & scrub PII before sending
+      const topicNotes = notes
+        .filter(n => activeTopic === 'ALL' || n.topic === activeTopic)
+        .slice(0, 30)
+        .map(n => `- [${n.topic}] ${scrubPII(n.title)}: ${scrubPII(n.synthesized)}`)
+        .join('\n');
+
+      const draftText = scrubPII(document.getElementById('rawInput').value.trim());
+
+      const systemPrompt = `You are a candid, pragmatic second brain and decision partner.
+Active Topic: "${activeTopic}"
+User's Notes in this Topic (anonymized):
+${topicNotes || '(No saved notes yet)'}
+${draftText ? `\nUnsaved text currently in user's input box:\n"${draftText}"` : ''}
+
+User Request: "${scrubPII(question)}"
+
+Instructions:
+- Reply in the same language as the user's request or notes (English or Spanish).
+- Be direct, analytical, and concise. Give a concrete second opinion, highlight trade-offs, or polish their text if asked.`;
+
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${geminiApiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: systemPrompt }] }]
+          })
+        });
+
+        if (!res.ok) throw new Error('Request failed');
+        const data = await res.json();
+        lastAiResponse = data.candidates[0].content.parts[0].text.trim();
+        textEl.textContent = lastAiResponse;
+        if (!presetQuestion) qInput.value = '';
+      } catch (err) {
+        textEl.textContent = 'Error connecting to Gemini API. Check your API key or model selection.';
+      }
+    };
+
+    // --- RENDER UI ---
+    function getTopicCounts() {
+      const counts = {};
+      notes.forEach(n => {
+        counts[n.topic] = (counts[n.topic] || 0) + 1;
+      });
+      return counts;
     }
 
-    function renderTabs() {
-      const container = document.getElementById('categoryTabs');
-      container.innerHTML = CATEGORIES.map(cat => {
-        const count = cat.id === 'ALL'
-          ? notes.length
-          : notes.filter(n => n.category === cat.id).length;
-        const active = activeCategory === cat.id;
-        return `
+    function renderSidebar() {
+      const list = document.getElementById('sidebarTopicsList');
+      const counts = getTopicCounts();
+      const topics = Object.keys(counts).sort();
+
+      let html = `
+        <button
+          onclick="selectTopic('ALL')"
+          class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition ${
+            activeTopic === 'ALL' ? 'bg-indigo-600 text-white' : 'text-zinc-300 hover:bg-zinc-900'
+          }"
+        >
+          <span>🗂️ All Notes</span>
+          <span class="text-[11px] opacity-80">${notes.length}</span>
+        </button>
+      `;
+
+      topics.forEach(t => {
+        const active = activeTopic === t;
+        html += `
           <button
-            onclick="setCategory('${cat.id}')"
-            class="px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition flex items-center gap-2 border ${
-              active
-                ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-                : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800 hover:text-slate-200'
+            onclick="selectTopic('${t.replace(/'/g, "\\'")}')"
+            class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition ${
+              active ? 'bg-indigo-600 text-white' : 'text-zinc-300 hover:bg-zinc-900'
             }"
           >
-            <span>${cat.icon}</span>
-            <span>${cat.label}</span>
-            <span class="px-1.5 py-0.5 rounded-full text-[10px] ${active ? 'bg-indigo-800 text-indigo-100' : 'bg-slate-800 text-slate-400'}">${count}</span>
+            <span class="truncate"># ${t}</span>
+            <span class="text-[11px] opacity-80">${counts[t]}</span>
           </button>
         `;
-      }).join('');
+      });
+
+      list.innerHTML = html;
+
+      // Update API key status dot
+      const dot = document.getElementById('keyStatusDot');
+      dot.className = geminiApiKey
+        ? 'w-2 h-2 rounded-full bg-emerald-400'
+        : 'w-2 h-2 rounded-full bg-zinc-600';
     }
 
-    function highlightMatch(text, query) {
-      if (!query) return text;
-      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark class="bg-indigo-500/40 text-white rounded px-0.5">$1</mark>');
+    function renderHeader() {
+      document.getElementById('currentTopicLabel').textContent = activeTopic === 'ALL' ? 'All Notes' : `# ${activeTopic}`;
+      const filteredCount = getFilteredNotes().length;
+      document.getElementById('currentTopicCount').textContent = filteredCount;
+
+      const isEs = currentLang.startsWith('es');
+      document.getElementById('langFlag').textContent = isEs ? '🇪🇸' : '🇬🇧';
+      document.getElementById('langCode').textContent = isEs ? 'ES' : 'EN';
+    }
+
+    function getFilteredNotes() {
+      const q = searchQuery.toLowerCase();
+      return notes.filter(n => {
+        const matchesTopic = activeTopic === 'ALL' || n.topic === activeTopic;
+        const matchesQuery = !q ||
+          n.title.toLowerCase().includes(q) ||
+          n.synthesized.toLowerCase().includes(q) ||
+          n.topic.toLowerCase().includes(q);
+        return matchesTopic && matchesQuery;
+      });
     }
 
     function renderNotes() {
-      const container = document.getElementById('notesContainer');
-      const filtered = notes.filter(note => {
-        const matchesCat = activeCategory === 'ALL' || note.category === activeCategory;
-        const q = searchQuery.toLowerCase();
-        const matchesSearch = !q ||
-          note.title.toLowerCase().includes(q) ||
-          note.synthesized.toLowerCase().includes(q) ||
-          note.raw.toLowerCase().includes(q) ||
-          note.category.toLowerCase().includes(q);
-        return matchesCat && matchesSearch;
-      });
+      const container = document.getElementById('notesFeed');
+      const filtered = getFilteredNotes();
 
       if (filtered.length === 0) {
         container.innerHTML = `
-          <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-10 text-center">
-            <p class="text-2xl mb-2">📭</p>
-            <p class="text-sm text-slate-300 font-medium">No matching notes found</p>
-            <p class="text-xs text-slate-500 mt-1">Record a voice ramble or adjust your search filter.</p>
+          <div class="text-center py-12 text-zinc-600 text-xs">
+            No notes here yet.
           </div>
         `;
         return;
       }
 
-      container.innerHTML = filtered.map(note => {
-        const catMeta = CATEGORIES.find(c => c.id === note.category) || CATEGORIES[0];
-        const isTask = note.category === 'Tasks';
-
-        return `
-          <article class="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-5 transition shadow-lg">
-            <div class="flex items-start justify-between gap-3">
-              <div class="flex items-start gap-3">
-                ${isTask ? `
-                  <input
-                    type="checkbox"
-                    ${note.completed ? 'checked' : ''}
-                    onchange="toggleComplete('${note.id}')"
-                    class="mt-1 w-4 h-4 rounded accent-indigo-500 cursor-pointer"
-                  />
-                ` : ''}
-                <div>
-                  <h3 class="font-semibold text-base text-white ${note.completed ? 'line-through text-slate-500' : ''}">
-                    ${highlightMatch(note.title, searchQuery)}
-                  </h3>
-                  <div class="flex flex-wrap items-center gap-2 mt-1">
-                    <span class="text-[11px] px-2.5 py-0.5 rounded-full border ${catMeta.badgeClass}">
-                      ${catMeta.icon} ${note.category}
-                    </span>
-                    <span class="text-[11px] text-slate-500">${note.createdAt}</span>
-                    ${note.fillersRemoved > 0 ? `<span class="text-[11px] text-emerald-400/80">🧹 -${note.fillersRemoved} fillers</span>` : ''}
-                  </div>
+      container.innerHTML = filtered.map(n => `
+        <article class="bg-zinc-900/90 border border-zinc-800/80 rounded-2xl p-4 transition">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-start gap-2.5 min-w-0">
+              <input
+                type="checkbox"
+                ${n.completed ? 'checked' : ''}
+                onchange="toggleComplete('${n.id}')"
+                class="mt-1 w-4 h-4 rounded accent-indigo-500 cursor-pointer shrink-0"
+              />
+              <div class="min-w-0">
+                <h3 class="text-sm font-semibold text-zinc-100 leading-snug ${n.completed ? 'line-through text-zinc-500' : ''}">
+                  ${n.title}
+                </h3>
+                <div class="flex items-center gap-2 mt-1">
+                  <button
+                    onclick="changeNoteTopic('${n.id}')"
+                    class="text-[11px] px-2 py-0.5 rounded-md bg-zinc-800 text-indigo-300 hover:bg-zinc-700"
+                    title="Tap to change topic"
+                  >
+                    #${n.topic}
+                  </button>
+                  <span class="text-[11px] text-zinc-500">${n.date || ''}</span>
                 </div>
               </div>
-
-              <button
-                onclick="deleteNote('${note.id}')"
-                class="text-slate-500 hover:text-red-400 text-xs px-2 py-1 rounded-lg hover:bg-slate-800 transition"
-                title="Delete note"
-              >
-                🗑️
-              </button>
             </div>
 
-            <div class="mt-3 text-sm text-slate-200 whitespace-pre-line leading-relaxed ${note.completed ? 'line-through opacity-50' : ''}">${highlightMatch(note.synthesized, searchQuery)}</div>
+            <div class="flex items-center gap-1 shrink-0">
+              <button
+                onclick="copySafeForAI('${n.id}')"
+                class="px-2 py-1 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-[11px] text-zinc-300"
+                title="Copy anonymized context for AI"
+              >
+                📋 AI
+              </button>
+              <button
+                onclick="deleteNote('${n.id}')"
+                class="px-2 py-1 rounded-lg text-zinc-500 hover:text-red-400 text-xs"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
 
-            <details class="mt-3 pt-2 border-t border-slate-800/70 text-xs text-slate-500">
-              <summary class="cursor-pointer hover:text-slate-300 select-none">View original voice ramble</summary>
-              <p class="mt-2 italic text-slate-400 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/60">
-                "${highlightMatch(note.raw, searchQuery)}"
-              </p>
-            </details>
-          </article>
-        `;
-      }).join('');
+          <div class="mt-2.5 text-sm text-zinc-200 whitespace-pre-line leading-relaxed ${n.completed ? 'line-through opacity-40' : ''}">${n.synthesized}</div>
+        </article>
+      `).join('');
     }
 
     function renderAll() {
-      renderTabs();
+      // If activeTopic no longer has notes, reset to ALL
+      if (activeTopic !== 'ALL' && !notes.some(n => n.topic === activeTopic)) {
+        activeTopic = 'ALL';
+      }
+      renderSidebar();
+      renderHeader();
       renderNotes();
-      document.getElementById('aiModeBadge').textContent = geminiApiKey ? 'Gemini AI Active' : 'Local Engine';
     }
 
-    // --- INTERACTION HANDLERS ---
-    window.setCategory = (catId) => {
-      activeCategory = catId;
+    // --- ACTIONS & HANDLERS ---
+    function openSidebar() {
+      const overlay = document.getElementById('sidebarOverlay');
+      const drawer = document.getElementById('sidebarDrawer');
+      overlay.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        overlay.classList.remove('opacity-0');
+        drawer.classList.remove('-translate-x-full');
+      });
+    }
+
+    function closeSidebar() {
+      const overlay = document.getElementById('sidebarOverlay');
+      const drawer = document.getElementById('sidebarDrawer');
+      overlay.classList.add('opacity-0');
+      drawer.classList.add('-translate-x-full');
+      setTimeout(() => overlay.classList.add('hidden'), 200);
+    }
+
+    window.selectTopic = (topic) => {
+      activeTopic = topic;
+      closeSidebar();
       renderAll();
     };
 
@@ -600,75 +822,163 @@ Raw voice ramble:
       const note = notes.find(n => n.id === id);
       if (note) {
         note.completed = !note.completed;
-        saveNotes();
+        saveState();
         renderNotes();
       }
     };
 
     window.deleteNote = (id) => {
       notes = notes.filter(n => n.id !== id);
-      saveNotes();
+      saveState();
       renderAll();
     };
 
-    // --- EVENT LISTENERS ---
-    document.getElementById('recordBtn').addEventListener('click', toggleRecording);
-    document.getElementById('synthesizeBtn').addEventListener('click', handleSynthesize);
+    window.changeNoteTopic = (id) => {
+      const note = notes.find(n => n.id === id);
+      if (!note) return;
+      const newTopic = prompt('Move to topic:', note.topic);
+      if (newTopic && newTopic.trim()) {
+        note.topic = newTopic.trim().replace(/^#/, '');
+        saveState();
+        renderAll();
+      }
+    };
 
-    // Sample Ramble Demo Button
-    document.getElementById('demoBtn').addEventListener('click', () => {
-      const samples = [
-        "Um, okay so for dinner tonight I want to make that crispy honey garlic salmon recipe. Basically you need two salmon fillets, three tablespoons of soy sauce, two tablespoons of honey, uh four cloves of minced garlic, and a squeeze of lime juice. Sear the salmon skin-side down for four minutes then simmer the glaze until thick. Also remind me to buy paper towels and call the plumber tomorrow morning before 10 AM. Oh and I had this random thought that we should rearrange the living room bookshelf by color instead of author.",
-        "Uh so I was thinking about a new app idea where neighbors can lend power tools to each other for weekend DIY projects. Also I really need to renew my car insurance before Friday and pick up dry cleaning. For the quick guacamole recipe, mash two ripe avocados with diced red onion, cilantro, jalapeno, lime juice, and half a teaspoon of flaky sea salt."
-      ];
-      const randomSample = samples[Math.floor(Math.random() * samples.length)];
-      document.getElementById('rawInput').value = randomSample;
-      document.getElementById('categorySelect').value = 'AUTO';
+    window.copySafeForAI = async (id) => {
+      const note = notes.find(n => n.id === id);
+      if (!note) return;
+      const safeTitle = scrubPII(note.title);
+      const safeBody = scrubPII(note.synthesized);
+      const payload = `[Topic: ${note.topic}]\n${safeTitle}\n${safeBody}`;
+      await navigator.clipboard.writeText(payload);
+      showToast('Copied (Names & numbers scrubbed)');
+    };
+
+    // --- WIRE UP DOM EVENTS ---
+    document.getElementById('openSidebarBtn').addEventListener('click', openSidebar);
+    document.getElementById('closeSidebarBtn').addEventListener('click', closeSidebar);
+    document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
+
+    document.getElementById('langToggleBtn').addEventListener('click', () => {
+      currentLang = currentLang.startsWith('en') ? 'es-ES' : 'en-US';
+      localStorage.setItem('ramblesync_lang', currentLang);
+      if (isRecording) {
+        stopVoice();
+        setTimeout(startVoice, 150);
+      }
+      renderHeader();
+      showToast(currentLang.startsWith('es') ? 'Idioma: Español' : 'Language: English');
     });
 
-    // Search Input & Shortcut
+    document.getElementById('micBtn').addEventListener('click', startVoice);
+    document.getElementById('recordingRedZone').addEventListener('click', stopVoice);
+    document.getElementById('doneBtn').addEventListener('click', () => handleDone('SYNTHESIZE'));
+    document.getElementById('proofreadBtn').addEventListener('click', () => handleDone('PROOFREAD'));
+
+    // Model Selector
+    const modelSelect = document.getElementById('modelSelect');
+    modelSelect.value = selectedModel;
+    modelSelect.addEventListener('change', (e) => {
+      selectedModel = e.target.value;
+      localStorage.setItem('ramblesync_model', selectedModel);
+      showToast(`Model: ${selectedModel}`);
+    });
+
+    // Topic AI Question
+    document.getElementById('askAiBtn').addEventListener('click', () => askTopicAI());
+    document.getElementById('aiQuestionInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') askTopicAI();
+    });
+
+    document.getElementById('copyAiReplyBtn').addEventListener('click', async () => {
+      if (!lastAiResponse) return;
+      await navigator.clipboard.writeText(scrubPII(lastAiResponse));
+      showToast('AI reply copied');
+    });
+
+    document.getElementById('saveAiReplyBtn').addEventListener('click', () => {
+      if (!lastAiResponse) return;
+      const targetTopic = activeTopic === 'ALL' ? 'Thoughts' : activeTopic;
+      notes.unshift({
+        id: 'n-' + Date.now(),
+        title: 'AI Analysis — ' + targetTopic,
+        topic: targetTopic,
+        synthesized: lastAiResponse,
+        raw: lastAiResponse,
+        completed: false,
+        date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+      });
+      saveState();
+      document.getElementById('aiResponseBox').classList.add('hidden');
+      renderAll();
+      showToast('Saved to ' + targetTopic);
+    });
+
+    // Save API Key in Sidebar
+    document.getElementById('apiKeyInput').value = geminiApiKey;
+    document.getElementById('saveKeyBtn').addEventListener('click', () => {
+      geminiApiKey = document.getElementById('apiKeyInput').value.trim();
+      localStorage.setItem('ramblesync_gemini_key', geminiApiKey);
+      renderSidebar();
+      showToast(geminiApiKey ? 'API Key saved locally' : 'Switched to Local Engine');
+    });
+
+    // Copy All Filtered Notes (Scrubbed)
+    document.getElementById('copyTopicContextBtn').addEventListener('click', async () => {
+      const filtered = getFilteredNotes();
+      if (filtered.length === 0) return;
+      const text = filtered
+        .map(n => `[#${n.topic}] ${scrubPII(n.title)}: ${scrubPII(n.synthesized)}`)
+        .join('\n\n');
+      await navigator.clipboard.writeText(text);
+      showToast(`Copied ${filtered.length} note(s) (PII scrubbed)`);
+    });
+
+    // Bottom Search Bar
     const searchInput = document.getElementById('searchInput');
     const clearSearchBtn = document.getElementById('clearSearchBtn');
-
     searchInput.addEventListener('input', (e) => {
       searchQuery = e.target.value;
       clearSearchBtn.classList.toggle('hidden', !searchQuery);
+      renderHeader();
       renderNotes();
     });
-
     clearSearchBtn.addEventListener('click', () => {
       searchQuery = '';
       searchInput.value = '';
       clearSearchBtn.classList.add('hidden');
+      renderHeader();
       renderNotes();
     });
 
-    window.addEventListener('keydown', (e) => {
-      if (e.key === '/' && document.activeElement !== searchInput && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') {
-        e.preventDefault();
-        searchInput.focus();
-      }
+    // Backup & Restore JSON
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `notes-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
     });
 
-    // Settings Modal
-    const settingsModal = document.getElementById('settingsModal');
-    document.getElementById('settingsBtn').addEventListener('click', () => {
-      document.getElementById('apiKeyInput').value = geminiApiKey;
-      settingsModal.classList.remove('hidden');
-    });
-    document.getElementById('closeModalBtn').addEventListener('click', () => settingsModal.classList.add('hidden'));
-    document.getElementById('saveKeyBtn').addEventListener('click', () => {
-      geminiApiKey = document.getElementById('apiKeyInput').value.trim();
-      localStorage.setItem('ramblesync_gemini_key', geminiApiKey);
-      settingsModal.classList.add('hidden');
-      renderAll();
-    });
-    document.getElementById('clearKeyBtn').addEventListener('click', () => {
-      geminiApiKey = '';
-      localStorage.removeItem('ramblesync_gemini_key');
-      document.getElementById('apiKeyInput').value = '';
-      settingsModal.classList.add('hidden');
-      renderAll();
+    document.getElementById('importInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const imported = JSON.parse(ev.target.result);
+          if (Array.isArray(imported)) {
+            notes = imported;
+            saveState();
+            renderAll();
+            showToast('Backup restored');
+          }
+        } catch (err) {
+          showToast('Invalid JSON file');
+        }
+      };
+      reader.readAsText(file);
     });
 
     // Initial Render
